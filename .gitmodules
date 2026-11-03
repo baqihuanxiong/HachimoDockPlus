@@ -1,0 +1,3 @@
+[submodule "HachimoDock"]
+	path = HachimoDock
+	url = https://github.com/YizhengWw/HachimoDock.git
