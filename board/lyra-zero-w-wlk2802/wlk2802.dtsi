@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * WLK2802MIPI / ST7701S, 480x640, one DSI data lane.
+ * Include LAST in rk3506b-luckfox-lyra-zero-w.dts (202610 SDK).
+ * Panel commands/timings follow the project's ESP32-P4 WLK2802 BSP.
+ * Bring-up candidate: DT compilation does not prove physical display operation.
+ */
+
+#include <dt-bindings/display/media-bus-format.h>
+
+&dsi {
+	rockchip,lane-rate = <800>;
+};
+
+&dsi_panel {
+	dsi,lanes = <1>;
+	dsi,format = <MIPI_DSI_FMT_RGB888>;
+	dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
+	bpc = <8>;
+	bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	/* Remove dimensions inherited from the official 10.1-inch screen. */
+	/delete-property/ width-mm;
+	/delete-property/ height-mm;
+
+	/* The supplied 22-pin adapter drawing leaves pins 5/6 unconnected. */
+	/delete-property/ reset-gpios;
+	/delete-property/ enable-gpios;
+	/delete-property/ backlight;
+	prepare-delay-ms = <120>;
+	init-delay-ms = <120>;
+	enable-delay-ms = <20>;
+
+	panel-init-sequence = [
+		/* Software reset: there is no confirmed external reset connection. */
+		05 78 01 01
+		/* Commands emitted by the ESP32 panel driver before its vendor table. */
+		39 00 06 FF 77 01 00 00 00
+		15 00 02 36 00
+		15 00 02 3A 77
+		39 00 06 FF 77 01 00 00 13
+		15 00 02 EF 08
+		39 00 06 FF 77 01 00 00 10
+		39 00 03 C0 4F 00
+		39 00 03 C1 10 0C
+		39 00 03 C2 01 14
+		15 00 02 CC 10
+		39 00 11 B0 0A 18 1E 12 16 0C 0E 0D 0C 29 06 14 13 29 33 1C
+		39 00 11 B1 0A 19 21 0A 0C 00 0C 03 03 23 01 0E 0C 27 2B 1C
+		39 00 06 FF 77 01 00 00 11
+		15 00 02 B0 5D
+		15 00 02 B1 61
+		15 00 02 B2 84
+		15 00 02 B3 80
+		15 00 02 B5 4D
+		15 00 02 B7 85
+		15 00 02 B8 20
+		15 00 02 C1 78
+		15 00 02 C2 78
+		15 00 02 D0 88
+		39 00 04 E0 00 00 02
+		39 00 0C E1 06 A0 08 A0 05 A0 07 A0 00 44 44
+		39 00 0D E2 20 20 44 44 96 A0 00 00 96 A0 00 00
+		39 00 05 E3 00 00 22 22
+		39 00 03 E4 44 44
+		39 00 11 E5 0D 91 A0 A0 0F 93 A0 A0 09 8D A0 A0 0B 8F A0 A0
+		39 00 05 E6 00 00 22 22
+		39 00 03 E7 44 44
+		39 00 11 E8 0C 90 A0 A0 0E 92 A0 A0 08 8C A0 A0 0A 8E A0 A0
+		39 00 03 E9 36 00
+		39 00 08 EB 00 01 E4 E4 44 88 40
+		39 00 11 ED FF 45 67 FA 01 2B CF FF FF FC B2 10 AF 76 54 FF
+		39 00 07 EF 10 0D 04 08 3F 1F
+		05 78 01 11
+		05 14 01 29
+		15 00 02 35 00
+	];
+	panel-exit-sequence = [
+		05 14 01 28
+		05 78 01 10
+	];
+};
+
+&dsi_timing0 {
+	clock-frequency = <24000000>;
+	hactive = <480>;
+	vactive = <640>;
+	hfront-porch = <10>;
+	hsync-len = <4>;
+	hback-porch = <20>;
+	vfront-porch = <8>;
+	vsync-len = <4>;
+	vback-porch = <14>;
+	hsync-active = <0>;
+	vsync-active = <0>;
+	de-active = <0>;
+	pixelclk-active = <0>;
+};
+
+/* No external backlight control is established by the supplied drawings. */
+&backlight {
+	status = "disabled";
+};
+
+&pwm0_4ch_2 {
+	status = "disabled";
+};
+
+&gt9271 {
+	status = "disabled";
+};
+
+&gt911 {
+	status = "disabled";
+};
+
+&ws_bl {
+	status = "disabled";
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+};
+
+&ft5406 {
+	/* CST826 at 0x38: use the SDK's compatible two-point report parser.
+	 * This is a board-specific protocol compatibility setting, not an
+	 * assertion that the physical controller is a FocalTech chip.
+	 * No IRQ/reset is wired in the supplied adapter: use SDK polling.
+	 */
+	compatible = "focaltech,ft6236";
+	reg = <0x38>;
+	status = "okay";
+	touchscreen-size-x = <480>;
+	touchscreen-size-y = <640>;
+	touchscreen-inverted-x;
+	touchscreen-inverted-y;
+	/delete-property/ touchscreen-swapped-x-y;
+	/delete-property/ interrupts;
+	/delete-property/ interrupts-extended;
+	/delete-property/ reset-gpios;
+};

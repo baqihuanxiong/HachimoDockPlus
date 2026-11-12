@@ -1,0 +1,34 @@
+{
+  "data_dir": ".local/data",
+  "audio": {
+    "capture_device": "default",
+    "playback_device": "default"
+  },
+  "ui": {
+    "framebuffer": "/dev/fb0",
+    "input": "auto",
+    "font": ".local/assets/wqy-microhei.ttc"
+  },
+  "apps": {
+    "picoclaw": {
+      "llm": {
+        "url": "https://your-model-service.example/v1",
+        "model": "your-model",
+        "key_file": ".local/secrets/llm.key"
+      },
+      "asr": {
+        "url": "wss://your-asr-service.example",
+        "key_file": ".local/secrets/asr.key",
+        "language": "中文"
+      },
+      "tts": {
+        "url": "https://your-tts-service.example",
+        "key_file": ".local/secrets/tts.key",
+        "mode": "instruct2",
+        "prompt_wav": ".local/assets/reference.wav",
+        "prompt_text": "",
+        "instruction": "请用自然、清晰的中文说话。"
+      }
+    }
+  }
+}

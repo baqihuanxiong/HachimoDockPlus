@@ -30,6 +30,12 @@ network={
 
 > 小米 AX3600 Mesh 下“有 IP 但无法通信”的问题，长期稳定性仍在观察。`ps_on=0` 是此前排查保留的省电关闭设置，其必要性尚未证实。
 
+## WLK2802MIPI 屏幕适配
+
+ST7701S 480×640 单 Lane DSI 屏幕与 CST826 触摸的设备树、构建和刷写记录见 [屏幕适配说明](board/lyra-zero-w-wlk2802/README.md)。第三版 RGB888 已完成 boot 刷写和读回校验，用户确认横屏应用的颜色、文字及方向正常；保留原内核、Wi-Fi 和 SSH 配置。CST826 曾出现 I²C 超时，在断电重新插牢排线后恢复；用户已确认横屏触控和输入发送正常，并收到模型回复。
+
 ## 参考资料
+
+Go + LVGL 应用框架、PicoClaw 对话和构建部署方法见 [src/README.md](src/README.md)。
 
 - [Luckfox Lyra Zero W 在线文档](https://wiki.luckfox.com/zh/Luckfox-Lyra/Luckfox-Lyra-Zero-W)

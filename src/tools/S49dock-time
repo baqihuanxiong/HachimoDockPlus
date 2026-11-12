@@ -1,0 +1,17 @@
+#!/bin/sh
+# Optional Buildroot time bootstrap; install only when no existing NTP service exists.
+case "$1" in
+  start)
+    (
+      attempt=0
+      while [ "$attempt" -lt 12 ]; do
+        /opt/hachimodock/current/dock -sync-time && exit 0
+        attempt=$((attempt + 1))
+        sleep 10
+      done
+      echo 'HachimoDock: time synchronization failed' >&2
+    ) >/var/log/dock-time.log 2>&1 &
+    ;;
+  stop) : ;;
+  *) echo "Usage: $0 start|stop" >&2; exit 1 ;;
+esac

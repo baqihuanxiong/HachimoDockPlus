@@ -1,2 +1,6 @@
 /img/
 /sdk/
+/src/.local/
+/src/.cache/
+/src/build/
+/src/references/secret.md
