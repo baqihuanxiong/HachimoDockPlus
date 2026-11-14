@@ -1,10 +1,6 @@
-# Lyra Zero W：WLK2802MIPI 屏幕适配
+# Lyra Zero W 屏幕试验记录
 
-适用于本项目已经在 ESP32-P4 上使用的 **WLK2802MIPI / ST7701S、480×640、单 Lane DSI** 屏幕，以及用户提供的 22Pin 转接排线。适配文件为 [wlk2802.dtsi](wlk2802.dtsi)，目标 SDK 为 `Luckfox_Lyra_SDK_202610`。
-
-当前状态（2026-11-12）：**第三版 RGB888 显示已通过实机确认，重新插牢排线后触摸已恢复枚举**。第二版 RGB565 虽能出图，但运行 LVGL 后用户反馈绿色偏色、文字失真；第三版同时改为 DSI RGB888、RGB888_1X24、8 bpc、`0x3A=0x77` 后，用户确认颜色、文字和横屏方向正常。原生时序仍为 480×640、约 70 Hz，Go + LVGL 应用软件旋转为 640×480。
-
-触摸曾出现冷启动、完整断电和重新绑定驱动后仍 I²C 超时，系统没有 CST826 输入设备。解绑 I²C 控制器并将 GPIO0_A0/A1 设为输入，读到 SDA=1、SCL=0；开漏时钟恢复后不变，随后已恢复 I²C 引脚及驱动。用户在断电状态重新插牢 22Pin 排线后，驱动成功绑定 `2-0038`，触摸恢复为 `/dev/input/event0`，电源键变为 event1。最新横屏应用中用户已确认坐标、页面切换、屏幕键盘输入和发送正常，并收到 PicoClaw 真实模型回复；采集到 13 次按下及 13 次抬起。当前不配置未经接线确认的复位 GPIO。
+本文归档 2026-11-10 至 2026-11-12 的 WLK2802MIPI 屏幕适配、刷写和排查过程，文中的“当前”指当时状态。后续显示试验也放在此目录。日常构建与后续板级适配以 [板级说明](../../board/lyra-zero-w/README.md) 为准。
 
 ## 本次构建与刷写记录
 
@@ -19,10 +15,10 @@
 - 对应 `.manifest.json` 包含内核、启动图片及 DTB 校验值，`flash-v2.log` 记录写入和读回结果。
 - `original-patched.dts` 是以原固件反编译设备树为基础的本次构建输入，`wlk2802.dtb` 是编译结果。
 
-[repack_fit.py](repack_fit.py) 用于本布局的本地重打包。它会拒绝签名 FIT、原镜像哈希错误、非显示/触摸属性变化，以及超出原 DTB 空间的替换。脚本同时替换 FIT 独立 DTB 和 resource.img 的 `rk-kernel.dtb`，更新资源 SHA-1 与 FIT SHA-256；原内核和两张 BMP 图片保持逐字节一致。它不执行刷写。
+[repack_fit.py](../../board/lyra-zero-w/repack_fit.py) 用于本布局的本地重打包。它会拒绝签名 FIT、原镜像哈希错误、非显示/触摸属性变化，以及超出原 DTB 空间的替换。脚本同时替换 FIT 独立 DTB 和 resource.img 的 `rk-kernel.dtb`，更新资源 SHA-1 与 FIT SHA-256；原内核和两张 BMP 图片保持逐字节一致。它不执行刷写。
 
 ```bash
-python3 board/lyra-zero-w-wlk2802/repack_fit.py \
+python3 board/lyra-zero-w/repack_fit.py \
   sdk/luckyfox-lyra/backups/pre-wlk2802/boot.img \
   sdk/luckyfox-lyra/artifacts/wlk2802/wlk2802-rgb888.dtb \
   sdk/luckyfox-lyra/artifacts/wlk2802/boot-wlk2802-v3.img
@@ -90,67 +86,3 @@ U-Boot 源码中的 `arch/arm/mach-rockchip/fit_misc.c` 在 `USING_KERNEL_DTB` �
 
 SDK 的 `panel-simple` 在没有外部 backlight 属性时会自动创建 DCS 背光设备。它的存在不能证明屏幕支持 DCS 调光；本轮没有验证调光，也不依赖读取该设备的 brightness 属性判断背光状态。
 
-## 应用到 SDK
-
-以下命令在项目根目录执行，只准备源码，不刷写设备：
-
-```bash
-mkdir -p sdk/luckyfox-lyra/source
-tar -xzf sdk/luckyfox-lyra/Luckfox_Lyra_SDK_202610.tar.gz \
-  -C sdk/luckyfox-lyra/source
-cd sdk/luckyfox-lyra/source
-.repo/repo/repo sync -l
-./build.sh lunch
-```
-
-在菜单中选择 **Lyra Zero W → SPI_NAND → Buildroot**，对应配置为 `luckfox_lyra_zero-w_buildroot_spinand_defconfig`。内核配置是 `rk3506_luckfox_defconfig` 加 `rk3506-display.config`，设备树是 `rk3506b-luckfox-lyra-zero-w.dts`。
-
-回到项目根目录，复制适配文件：
-
-```bash
-cp board/lyra-zero-w-wlk2802/wlk2802.dtsi \
-  sdk/luckyfox-lyra/source/kernel-6.1/arch/arm/boot/dts/
-```
-
-在 SDK 的 `kernel-6.1/arch/arm/boot/dts/rk3506b-luckfox-lyra-zero-w.dts` **文件末尾**增加一次：
-
-```dts
-#include "wlk2802.dtsi"
-```
-
-202610 SDK 的屏幕公共配置已拆到 `rk3506-luckfox-lyra-dsi.dtsi`。不要根据旧文档修改不存在的 `rk3506-luckfox-lyra-ultra.dtsi`，也不要同时用 `luckfox-config` 切换回官方屏幕配置。
-
-在 SDK 根目录构建：
-
-```bash
-./build.sh kernel
-```
-
-默认已有 `CONFIG_DRM_PANEL_SIMPLE=y`、`CONFIG_DRM_PANEL_SIMPLE_OF_ONLY=y`、`CONFIG_TOUCHSCREEN_EDT_FT5X06=y`。候选方案只改设备树，不增加模块；本次不需要构建整个 Buildroot rootfs。首次构建仍需按官方文档准备主机依赖与 SDK 交叉工具链。
-
-输出 `rockdev/boot.img` 是打包的内核和设备树。板上没有 `/boot` 目录，不能靠往根文件系统复制一个 `.dtb` 生效。部署时先保存可恢复的原固件和现有 Wi-Fi 配置，再使用该 SDK 对应的官方工具更新 **boot 分区**；这里不提供对 SPI NAND 使用 `dd` 的写入命令。
-
-官方参考：[SDK 编译](https://wiki.luckfox.com/zh/Luckfox-Lyra/SDK-Image-Compilation/)、[设备树](https://wiki.luckfox.com/zh/Luckfox-Lyra/Device-Tree/)。
-
-## 上板验收
-
-刷入候选 boot.img 并启动后执行：
-
-```bash
-modetest -M rockchip -c
-cat /sys/kernel/debug/dri/0/summary
-dmesg | grep -Ei 'dsi|panel|touch|ft5|backlight'
-cat /proc/bus/input/devices
-evtest /dev/input/event0
-```
-
-设备号应以 `/proc/bus/input/devices` 为准。预期显示模式为 480×640，触摸 ABS_MT_POSITION_X 范围为 0～479、Y 为 0～639；输入设备名字仍可能包含 `generic ft5x06`，它不是物理芯片 ID。
-
-按以下顺序验证：
-
-1. 冷启动和热重启后均能出图，排除仅继承上次屏幕寄存器状态的情况。
-2. 纯红、纯绿、纯蓝及棋盘格无偏色、错位、闪烁、截断。
-3. 竖屏四角坐标、拖动、抬起及两触点记录正常。
-4. 最后在应用层增加横屏旋转，并同步调整触摸映射，不将面板原生时序改成 640×480。
-
-若有背光但不出图，优先核对 DSI 初始化错误、Lane 0、RGB888 与 `0x3A=0x77` 的一致性，以及冷启动复位行为。若只有冷启动失败，需进一步确认背板 RESET 电路；现有两张图不足以据此指定外部复位 GPIO。

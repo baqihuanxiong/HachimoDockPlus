@@ -83,9 +83,9 @@ ssh root@192.168.5.156
 
 显示使用 `/dev/fb0`，原生面板保持 480×640，由 LVGL 软件旋转 270°得到逻辑 640×480；不修改 DSI 原生分辨率。中文字体以 22/30 像素绘制。触摸会检查指定设备后扫描 `/dev/input/event*`，按 ABS_MT 坐标识别触摸屏，避免误选电源键；多点协议中的任意有效 tracking ID 均可触发按下。旋转后的坐标由 LVGL 处理。
 
-物理显示和 CST826 的系统配置见 [屏幕适配记录](../board/lyra-zero-w-wlk2802/README.md)。RGB888 输出已由用户确认颜色和文字正常。触摸曾发生 I²C 超时，断电重新插牢排线后恢复；用户已确认横屏坐标、页面切换、输入发送及真实模型回复正常。没有内核输入设备时应用会提示“未检测到触摸设备”，触摸恢复后需重启应用重新打开输入设备。屏幕键盘支持英文与符号输入，尚未实现中文输入法；中文字体回退到 LVGL 内置 Montserrat 符号字体绘制功能键，避免出现方块。
+物理显示和 CST826 的系统配置见 [Lyra Zero W 板级说明](../board/lyra-zero-w/README.md)。当前固件显示 Linux 控制台；启动应用后由 LVGL 绘制界面，RGB888 颜色、文字及横屏触控此前已通过实机验证。没有内核输入设备时应用会提示“未检测到触摸设备”，触摸恢复后需重启应用重新打开输入设备。屏幕键盘支持英文与符号输入，尚未实现中文输入法；中文字体回退到 LVGL 内置 Montserrat 符号字体绘制功能键，避免出现方块。
 
-开发板当前 `/proc/asound/cards` 为 `no soundcards`，因此录音按钮禁用，仍可通过文字与模型对话。真实麦克风和扬声器尚未验收。接入音频设备后配置 `audio.capture_device` / `playback_device`（如 `plughw:1,0`），并确认 `arecord` / `aplay` 可用；使用 `plughw` 可由 ALSA 转换采样率。
+Lyra Zero W 的 CM108B 已注册为 ALSA 声卡 `Device`，板端录放音及扬声器到麦克风的声学测试通过。`audio.capture_device` / `playback_device` 可使用 `plughw:CARD=Device,DEV=0`，支持应用所需的 16 kHz 单声道采集和 24 kHz 单声道播放；当前仅有这一张声卡时 `default` 也已验证可用。底板扬声器播放前需执行 `hachimodock-speaker-amp on`，使用结束后执行 `hachimodock-speaker-amp off`；应用尚未自动控制功放使能。驱动与功放工具安装方法见 [板级音频说明](../board/lyra-zero-w/usb-audio.md)。
 
 ## 验证
 
