@@ -23,6 +23,8 @@ import (
 
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/platform/status"
+	"hachimodockplus/internal/preferences"
 )
 
 func withStrings(values []string, call func([]*C.char)) {
@@ -33,7 +35,7 @@ func withStrings(values []string, call func([]*C.char)) {
 	}
 	call(cs)
 }
-func Run(ctx context.Context, h *core.Host, cfg config.Config, preview string, pages ...Page) error {
+func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.Monitor, prefs *preferences.Store, preview string, pages ...Page) error {
 	registered, err := validatePages(h.Snapshot().Applications, pages)
 	if err != nil {
 		return err
@@ -51,8 +53,42 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, preview string, p
 		return fmt.Errorf("LVGL 初始化失败（%d）：检查显示、触摸权限及字体文件", int(code))
 	}
 	defer C.dock_close()
+	currentAppearance := preferences.Snapshot{}
+	applyTheme := func() {
+		selected := prefs.Snapshot()
+		if selected != currentAppearance {
+			theme, _ := preferences.Find(selected.Theme)
+			light := 0
+			if selected.Mode == "light" {
+				light = 1
+			}
+			C.dock_theme_appearance(C.uint(theme.Color), C.int(light))
+			currentAppearance = selected
+		}
+	}
+	applyTheme()
+	stopMonitor := monitor.Start(ctx)
+	defer stopMonitor()
 	for _, m := range h.Snapshot().Applications {
 		withStrings([]string{m.ID, m.Title, m.Description, m.Icon}, func(cs []*C.char) { C.dock_catalog_add(cs[0], cs[1], cs[2], cs[3]) })
+		if m.IconImage != "" {
+			if pixels, w, h, err := iconPixels(cfg.Resolve(m.IconImage)); err == nil {
+				withStrings([]string{m.ID}, func(cs []*C.char) {
+					C.dock_catalog_image(cs[0], (*C.uchar)(unsafe.Pointer(&pixels[0])), C.int(w), C.int(h))
+				})
+			}
+		}
+	}
+	updateRunning := func(s core.Snapshot) {
+		for _, m := range s.Applications {
+			withStrings([]string{m.ID}, func(cs []*C.char) {
+				running := 0
+				if s.Running[m.ID] {
+					running = 1
+				}
+				C.dock_catalog_running(cs[0], C.int(running))
+			})
+		}
 	}
 	var current Page
 	defer func() {
@@ -65,13 +101,32 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, preview string, p
 	defer tick.Stop()
 	var revision, appRevision uint64
 	started := time.Now()
+	var headerUpdated time.Time
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-tick.C:
 			s := h.Snapshot()
+			applyTheme()
+			if time.Since(headerUpdated) >= time.Second {
+				headerUpdated = time.Now()
+				updateRunning(s)
+				st := monitor.Snapshot()
+				clock := monitor.Clock(headerUpdated)
+				level, charging := -1, 0
+				if st.BatteryReady {
+					level = st.Battery.ApproximateLevel()
+					if st.Battery.Charging() {
+						charging = 1
+					}
+				}
+				withStrings([]string{clock}, func(cs []*C.char) {
+					C.dock_catalog_header(cs[0], C.int(level), C.int(charging), C.int(st.Radios.WiFiStrength), C.int(st.Radios.BluetoothKind))
+				})
+			}
 			if revision != s.Revision || appRevision != s.Application.Revision {
+				updateRunning(s)
 				if current != nil && current.ID() != s.Active {
 					C.dock_show_catalog()
 					current.Unmount()

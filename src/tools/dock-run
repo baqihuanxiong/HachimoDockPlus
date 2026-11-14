@@ -1,0 +1,43 @@
+#!/bin/sh
+# Supervise the foreground UI without waiting for a network connection.
+set -u
+base=/opt/hachimodock
+child=
+time_child=
+shutdown() {
+ trap '' TERM INT
+ [ -z "$time_child" ] || kill "$time_child" 2>/dev/null || :
+ [ -z "$child" ] || kill "$child" 2>/dev/null || :
+ [ -z "$child" ] || wait "$child" 2>/dev/null || :
+ exit 0
+}
+trap shutdown TERM INT
+# No RTC: retry SNTP in parallel with the UI, including after offline startup.
+# Respect an existing system clock service; enable only on this board via defaults.
+[ ! -r /etc/default/hachimodock ] || . /etc/default/hachimodock
+if [ "${DOCK_SYNC_TIME:-0}" = 1 ]; then
+ (
+  attempt=0
+  while [ "$attempt" -lt 120 ]; do
+   "$base/current/dock" -sync-time && exit 0
+   attempt=$((attempt + 1))
+   sleep 15
+  done
+ ) > /var/log/hachimodock-time.log 2>&1 &
+ time_child=$!
+fi
+cd "$base" || exit 1
+while :; do
+ # Keep one previous run in tmpfs; never accumulate crash logs on NAND.
+ [ ! -f /var/log/hachimodock.log ] || mv -f /var/log/hachimodock.log /var/log/hachimodock.log.1
+ "$base/current/dock" -config "$base/config.json" > /var/log/hachimodock.log 2>&1 &
+ child=$!
+ wait "$child"
+ result=$?
+ child=
+ echo "HachimoDock exited ($result); restarting in 3 seconds" >> /var/log/hachimodock.log
+ sleep 3 &
+ child=$!
+ wait "$child"
+ child=
+done

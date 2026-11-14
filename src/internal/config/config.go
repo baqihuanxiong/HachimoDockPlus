@@ -22,6 +22,7 @@ type Audio struct {
 	PlaybackDevice string `json:"playback_device"`
 }
 type UI struct {
+	Timezone    string `json:"timezone"`
 	Framebuffer string `json:"framebuffer"`
 	Input       string `json:"input"`
 	Font        string `json:"font"`
@@ -100,6 +101,9 @@ func Load(path string) (Config, error) {
 	}
 	if c.UI.Framebuffer == "" {
 		c.UI.Framebuffer = "/dev/fb0"
+	}
+	if c.UI.Timezone == "" {
+		c.UI.Timezone = "Asia/Shanghai"
 	}
 	if c.UI.Input == "" {
 		c.UI.Input = "auto"

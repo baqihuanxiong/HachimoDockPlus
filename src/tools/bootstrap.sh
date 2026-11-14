@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-mkdir -p .cache build .local/assets
+mkdir -p .cache build .local/assets/app-icons
+cp assets/app-icons/*.png .local/assets/app-icons/
 if [ ! -d .cache/lvgl/.git ]; then
   git clone --depth 1 --branch v9.3.0 https://github.com/lvgl/lvgl.git .cache/lvgl
 fi

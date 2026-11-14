@@ -133,7 +133,7 @@ func run() error {
 	case "terminal":
 		return terminal.Run(ctx, desktop.Host, os.Stdin, os.Stdout, desktop.Commands)
 	case "lvgl":
-		return lvgl.Run(ctx, desktop.Host, cfg, *preview, desktop.Pages...)
+		return lvgl.Run(ctx, desktop.Host, cfg, desktop.Status, desktop.Preferences, *preview, desktop.Pages...)
 	default:
 		return errors.New("-ui 仅支持 lvgl 或 terminal")
 	}

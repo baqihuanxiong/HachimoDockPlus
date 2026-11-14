@@ -275,7 +275,7 @@ const (
 	ActionNew    = "conversation.new"
 )
 
-var Manifest = core.Manifest{ID: ID, Title: "PicoClaw", Description: "和你的智能体聊一聊", Icon: "P", Capabilities: []core.Capability{core.Network, core.Microphone, core.Speaker}}
+var Manifest = core.Manifest{ID: ID, Title: "PicoClaw", Description: "和你的智能体聊一聊", Icon: "P", IconImage: "assets/app-icons/picoclaw.png", Capabilities: []core.Capability{core.Network, core.Microphone, core.Speaker}}
 
 func (c *App) Start(ctx context.Context) error {
 	c.mu.Lock()

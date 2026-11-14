@@ -11,6 +11,7 @@ type Snapshot struct {
 	Revision     uint64
 	Active       string // Empty means application catalog.
 	Status       string
+	Running      map[string]bool
 	Applications []Manifest
 	Application  AppSnapshot
 }
@@ -119,7 +120,14 @@ func (h *Host) Dispatch(e Event) error {
 func (h *Host) Snapshot() Snapshot {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	s := Snapshot{Revision: h.revision, Active: h.active, Status: h.status, Applications: h.registry.Manifests()}
+	s := Snapshot{Revision: h.revision, Active: h.active, Status: h.status, Applications: h.registry.Manifests(), Running: make(map[string]bool)}
+	for id, app := range h.instances {
+		running := id == h.active
+		if reporter, ok := app.(BackgroundReporter); ok {
+			running = running || reporter.BackgroundRunning()
+		}
+		s.Running[id] = running
+	}
 	if app := h.instances[h.active]; app != nil {
 		s.Application = app.Snapshot()
 		if h.status != "" {

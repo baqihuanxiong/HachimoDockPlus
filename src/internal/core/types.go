@@ -29,6 +29,7 @@ const (
 // Capabilities document optional services; this is not a permission sandbox.
 type Manifest struct {
 	ID, Title, Description, Icon string
+	IconImage                    string // Optional PNG path relative to the configuration file; Icon remains the fallback.
 	Capabilities                 []Capability
 }
 
@@ -53,3 +54,7 @@ type Application interface {
 	Snapshot() AppSnapshot
 	Close() error
 }
+
+// BackgroundReporter optionally exposes live work owned outside the foreground
+// context. It must be nonblocking; cached instances alone do not imply running.
+type BackgroundReporter interface{ BackgroundRunning() bool }

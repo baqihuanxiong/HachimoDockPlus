@@ -1,0 +1,37 @@
+#!/bin/sh
+# Buildroot/BusyBox init entry. The supervisor owns and reaps the UI process.
+set -eu
+pidfile=/var/run/hachimodock.pid
+runner=/opt/hachimodock/dock-run
+running() {
+ [ -r "$pidfile" ] || return 1
+ read -r pid < "$pidfile"
+ case "$pid" in ''|*[!0-9]*) return 1;; esac
+ kill -0 "$pid" 2>/dev/null && [ -r "/proc/$pid/cmdline" ] &&
+  tr '\000' ' ' < "/proc/$pid/cmdline" | grep -q "$runner"
+}
+case "${1:-}" in
+ start)
+  if running; then echo 'HachimoDock is running'; exit 0; fi
+  test -x "$runner"
+  test -x /opt/hachimodock/current/dock
+  test -r /opt/hachimodock/config.json
+  umask 077
+  start-stop-daemon -S -q -b -m -p "$pidfile" -x "$runner"
+  ;;
+ stop)
+  if running; then
+   kill "$pid"
+   attempt=0
+   while kill -0 "$pid" 2>/dev/null; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 15 ]; then echo 'HachimoDock is still stopping' >&2; exit 1; fi
+    sleep 1
+   done
+  fi
+  rm -f "$pidfile"
+  ;;
+ restart) "$0" stop; "$0" start;;
+ status) if running; then echo "HachimoDock running (supervisor $pid)"; else echo 'HachimoDock stopped'; exit 1; fi;;
+ *) echo "Usage: $0 start|stop|restart|status" >&2; exit 2;;
+esac

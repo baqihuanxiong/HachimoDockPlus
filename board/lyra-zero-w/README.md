@@ -13,7 +13,7 @@
 | [Dockerfile](Dockerfile) | 使用 SDK 工具链的内核模块构建环境 |
 | [speaker-amp.sh](speaker-amp.sh) | PAM8403 扬声器功放使能控制 |
 
-屏幕与触摸已完成实机验证；当前固件屏幕显示 Linux 控制台。Go + LVGL 横屏应用曾验证颜色、文字、触控和输入发送正常，启动方式见 [应用说明](../../src/README.md)。CM108B 已通过标准 USB Audio 模块注册为 ALSA 声卡，录放音及扬声器到麦克风的声学测试通过；构建、部署及功放控制见 [USB 音频说明](usb-audio.md)。
+屏幕与触摸已完成实机验证；Go + LVGL 主程序支持目录、PicoClaw 和 Wi-Fi / 蓝牙设置，通过 Buildroot 服务开机自启。横屏颜色、文字、触控和输入发送正常，部署与服务管理见 [应用说明](../../src/README.md)。CM108B 已通过标准 USB Audio 模块注册为 ALSA 声卡，录放音及扬声器到麦克风的声学测试通过；构建、部署及功放控制见 [USB 音频说明](usb-audio.md)。
 
 功能试验和排查过程放在 [sandbox](../../sandbox/README.md) 对应目录；本目录保留可复用的板级适配。屏幕历史记录见 [sandbox/display](../../sandbox/display/README.md)。
 

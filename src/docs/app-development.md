@@ -151,7 +151,23 @@ tools/dev.sh tools/check-ui.sh
 tools/dev.sh build/native/dock -config .local/config.json -preview build/catalog.png
 tools/dev.sh build/native/dock -config .local/config.json -preview build/app.png -page <id>
 tools/dev.sh tools/build.sh arm
-tools/deploy.sh root@192.168.5.156
+tools/deploy.sh root@192.168.4.202
 ```
 
-板上验证目录入口、横屏坐标、返回后再次进入、处理中返回和错误提示；涉及音视频时还要验证切换后的设备释放。部署保持既有配置和数据，不会替换 boot 或安装开机启动项。启动示例与服务诊断见 [README](../README.md)。
+板上验证目录入口、横屏坐标、返回后再次进入、处理中返回和错误提示；涉及音视频时还要验证切换后的设备释放。部署保持既有配置和数据，不会替换 boot；已运行的开机服务会在切换版本前停止、随后恢复。首次安装开机服务执行 `tools/install-autostart.sh`。启动示例与服务诊断见 [README](../README.md)。
+
+## 后台状态与卡片分页
+
+目录自动按每页四张卡片分页，卡片整体点击打开；不需要应用自己创建“打开”按钮。`core.Snapshot.Running` 提供独立副本的运行状态映射，UI 在导航变化和定时刷新时同步右上角徽标。
+
+应用若拥有由共享服务管理的独立后台工作，可以额外实现 `core.BackgroundReporter` 的 `BackgroundRunning() bool`，以线程安全、无阻塞方式上报。这个接口只提供状态，不修改 `Start/Stop` 的前台 context，也不启动后台任务；应用缓存不代表运行。默认离开即取消的生命周期继续适用于 PicoClaw 和设置。
+
+主程序通过 `bootstrap` 注入共享外观偏好；设置应用通过 `theme.set` 保存选择。原生页面优先使用 `dock_button`、`dock_label`、`dock_panel` 的公共强调色样式和 `dock_theme_button`，以支持运行时主题变化。需要保持固有颜色的色板或状态图标应显式设置自己的颜色。
+
+## 卡片图片图标
+
+`core.Manifest.Icon` 支持单个字母或 LVGL 内置符号，例如设置齿轮 `"\uf013"`。`IconImage` 可选，填写相对于配置文件的本地 PNG 路径，例如 `"assets/app-icons/picoclaw.png"`。图片缺失或解码失败时保留 `Icon` 回退。
+
+PNG 由 Go 标准库解码并转换为带透明度的 BGRA，输入限制 4 MiB、宽高各不超过 512 像素；C 侧复制像素数据并负责缓存和释放。显示时在 48×48 区域等比缩放，不随主题色重着色，图片区域仍由整张卡片处理点击。不需要在板端联网或启用额外 PNG 解码库。
+
+内置图片放在 `src/assets/app-icons/` 并记录来源与许可；`bootstrap.sh` 复制到本机 `.local/assets/app-icons/`，部署脚本复制到板端 `assets/app-icons/`。PicoClaw 官方图标的来源、固定提交与校验值见该资源目录的 README。

@@ -6,6 +6,8 @@
 |---|---|
 | [display](display/README.md) | Lyra Zero W 的 WLK2802MIPI 屏幕与 CST826 触摸适配历史 |
 | [audio](audio/README.md) | Lyra Zero W 的 CM108B USB 音频检查与后续试验 |
+| [settings](settings/README.md) | Wi-Fi / 蓝牙设置、部署空间整理及主程序自启验证 |
 | [keyboard](keyboard/README.md) | Lyra Zero W 的三个按钮、摇杆按键及 ADS1015 两轴实时测试 |
+| [battery](battery/README.md) | INA226 电池电压、双向电流读取脚本与实机采样记录 |
 
 可复用的设备树、内核配置、驱动补丁及固件工具整理到 `board/<开发板名>/`；应用代码放在 `src/`。SDK、分区备份与固件产物继续放在被 Git 忽略的 `sdk/` 中，试验记录可引用其路径和校验值。

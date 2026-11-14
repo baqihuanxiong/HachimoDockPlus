@@ -113,3 +113,37 @@ func TestFailedStartReturnsToCatalogAndReleasesInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type backgroundApp struct {
+	testApp
+	running bool
+}
+
+func (a *backgroundApp) BackgroundRunning() bool { return a.running }
+func TestCatalogReportsLiveBackgroundWork(t *testing.T) {
+	a := &backgroundApp{}
+	r, _ := NewRegistry(Registration{Manifest: Manifest{ID: "worker", Title: "Worker"}, New: func() (Application, error) { return a, nil }})
+	h := NewHost(context.Background(), r)
+	defer h.Close()
+	h.Open("worker")
+	if !h.Snapshot().Running["worker"] {
+		t.Fatal("foreground app missing")
+	}
+	h.Back()
+	if h.Snapshot().Running["worker"] {
+		t.Fatal("cached instance marked running")
+	}
+	a.running = true
+	s := h.Snapshot()
+	if !s.Running["worker"] {
+		t.Fatal("background state missing")
+	}
+	s.Running["worker"] = false
+	if !h.Snapshot().Running["worker"] {
+		t.Fatal("mutable status map escaped")
+	}
+	a.running = false
+	if h.Snapshot().Running["worker"] {
+		t.Fatal("stale running state")
+	}
+}

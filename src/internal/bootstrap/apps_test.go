@@ -23,12 +23,19 @@ func TestCatalogDoesNotInitializePicoClaw(t *testing.T) {
 	}
 	defer desktop.Host.Close()
 	s := desktop.Host.Snapshot()
-	if s.Active != "" || len(s.Applications) != 1 {
+	if s.Active != "" || len(s.Applications) != 2 {
 		t.Fatal(s)
 	}
 	if _, err = os.Stat(filepath.Join(dir, "data")); !os.IsNotExist(err) {
 		t.Fatal("catalog initialized app storage")
 	}
+	if err = desktop.Host.Open("settings"); err != nil {
+		t.Fatal(err)
+	}
+	if desktop.Host.Snapshot().Active != "settings" {
+		t.Fatal("settings unavailable without model credentials")
+	}
+	desktop.Host.Back()
 	if err = desktop.Host.Open("picoclaw"); err == nil {
 		t.Fatal("missing app settings accepted")
 	}

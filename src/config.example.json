@@ -5,6 +5,7 @@
     "playback_device": "default"
   },
   "ui": {
+    "timezone": "Asia/Shanghai",
     "framebuffer": "/dev/fb0",
     "input": "auto",
     "font": ".local/assets/wqy-microhei.ttc"
