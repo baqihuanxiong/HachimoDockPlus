@@ -21,9 +21,9 @@ func TestCatalogDoesNotInitializePicoClaw(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer desktop.Host.Close()
+	defer desktop.Close()
 	s := desktop.Host.Snapshot()
-	if s.Active != "" || len(s.Applications) != 2 {
+	if s.Active != "" || len(s.Applications) != 3 {
 		t.Fatal(s)
 	}
 	if _, err = os.Stat(filepath.Join(dir, "data")); !os.IsNotExist(err) {

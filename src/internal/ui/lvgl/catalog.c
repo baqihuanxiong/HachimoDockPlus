@@ -7,13 +7,21 @@
 #include <stdio.h>
 #define PAGE_WIDTH 600
 static lv_obj_t *catalog_list,*catalog_dots,*catalog_status;
-static unsigned catalog_count,catalog_page_index;
-typedef struct catalog_entry{char id[64];lv_obj_t *card,*running,*image;lv_image_dsc_t image_data;unsigned char *image_pixels;lv_point_t press;int dragged;struct catalog_entry *next;}catalog_entry;
+static unsigned catalog_count,catalog_page_index,catalog_selection;
+typedef struct catalog_entry{char id[64];unsigned index;lv_obj_t *card,*running,*image;lv_image_dsc_t image_data;unsigned char *image_pixels;lv_point_t press;int dragged;struct catalog_entry *next;}catalog_entry;
 static catalog_entry *catalog_entries;
+static void catalog_focus(unsigned index){
+ catalog_selection=index;
+ for(catalog_entry *entry=catalog_entries;entry;entry=entry->next){
+  if(entry->index==index)lv_obj_add_state(entry->card,LV_STATE_FOCUSED);
+  else lv_obj_remove_state(entry->card,LV_STATE_FOCUSED);
+ }
+}
 static void catalog_page_selected(void){
  unsigned count=lv_obj_get_child_count(catalog_dots);
  int index=(lv_obj_get_scroll_x(catalog_list)+PAGE_WIDTH/2)/PAGE_WIDTH;
  if(index<0)index=0;if(count&&(unsigned)index>=count)index=(int)count-1;
+ if(catalog_page_index!=(unsigned)index)catalog_focus((unsigned)index*4);
  catalog_page_index=(unsigned)index;
  for(unsigned i=0;i<count;i++)dock_theme_button(lv_obj_get_child(catalog_dots,i),i==catalog_page_index);
 }
@@ -24,6 +32,7 @@ static void catalog_click(lv_event_t *e){
  if(code==LV_EVENT_PRESSED){entry->dragged=0;if(input)lv_indev_get_point(input,&entry->press);return;}
  if(code==LV_EVENT_PRESSING){if(input){lv_point_t point;lv_indev_get_point(input,&point);if(abs(point.x-entry->press.x)>12||abs(point.y-entry->press.y)>12)entry->dragged=1;}return;}
  if(entry->dragged||(input&&lv_indev_get_scroll_obj(input)))return;
+ catalog_focus(entry->index);
  dock_emit("","shell.open",entry->id);
 }
 static void catalog_image_release(catalog_entry *entry){
@@ -32,7 +41,7 @@ static void catalog_image_release(catalog_entry *entry){
 }
 static void catalog_deleted(lv_event_t *e){catalog_entry *entry=lv_event_get_user_data(e);catalog_image_release(entry);catalog_entry **cursor=&catalog_entries;while(*cursor&&*cursor!=entry)cursor=&(*cursor)->next;if(*cursor)*cursor=entry->next;free(entry);}
 void dock_catalog_create(lv_obj_t *parent){
- catalog_count=catalog_page_index=0;catalog_entries=NULL;
+ catalog_count=catalog_page_index=catalog_selection=0;catalog_entries=NULL;
  catalog_list=lv_obj_create(parent);dock_panel(catalog_list,0x0c1220);
  lv_obj_set_pos(catalog_list,20,84);lv_obj_set_size(catalog_list,PAGE_WIDTH,336);
  lv_obj_set_scroll_dir(catalog_list,LV_DIR_HOR);lv_obj_set_scrollbar_mode(catalog_list,LV_SCROLLBAR_MODE_OFF);
@@ -52,14 +61,32 @@ void dock_catalog_add(const char *id,const char *title,const char *description,c
   lv_obj_t *dot=lv_obj_create(catalog_dots);dock_panel(dot,0x334155);lv_obj_set_size(dot,10,10);lv_obj_set_style_radius(dot,LV_RADIUS_CIRCLE,0);lv_obj_remove_flag(dot,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_event_cb(dot,catalog_dot_click,LV_EVENT_CLICKED,(void*)(uintptr_t)page_index);dock_theme_button(dot,page_index==catalog_page_index);
  }else page=lv_obj_get_child(catalog_list,page_index);
- catalog_entry *entry=calloc(1,sizeof(*entry));LV_ASSERT_MALLOC(entry);snprintf(entry->id,sizeof(entry->id),"%s",id);
+ catalog_entry *entry=calloc(1,sizeof(*entry));LV_ASSERT_MALLOC(entry);entry->index=catalog_count;snprintf(entry->id,sizeof(entry->id),"%s",id);
  lv_obj_t *card=entry->card=lv_obj_create(page);dock_panel(card,0x172333);lv_obj_set_pos(card,(slot%2)*308,(slot/2)*172);lv_obj_set_size(card,292,156);lv_obj_set_style_radius(card,18,0);
- dock_theme_background(card,0x203147,LV_STATE_PRESSED);lv_obj_remove_flag(card,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(card,LV_OBJ_FLAG_CLICKABLE);
+ dock_theme_background(card,0x203147,LV_STATE_PRESSED);
+ lv_obj_set_style_outline_width(card,3,LV_STATE_FOCUSED);lv_obj_set_style_outline_pad(card,-3,LV_STATE_FOCUSED);
+ dock_theme_focus(card);
+ if(entry->index==catalog_selection)lv_obj_add_state(card,LV_STATE_FOCUSED);lv_obj_remove_flag(card,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(card,LV_OBJ_FLAG_CLICKABLE);
  lv_obj_add_event_cb(card,catalog_click,LV_EVENT_CLICKED,entry);lv_obj_add_event_cb(card,catalog_click,LV_EVENT_PRESSED,entry);lv_obj_add_event_cb(card,catalog_click,LV_EVENT_PRESSING,entry);lv_obj_add_event_cb(card,catalog_deleted,LV_EVENT_DELETE,entry);
  lv_obj_t *badge=lv_obj_create(card);dock_panel(badge,0x134e4a);lv_obj_set_pos(badge,18,16);lv_obj_set_size(badge,52,52);lv_obj_set_style_radius(badge,14,0);lv_obj_remove_flag(badge,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
  lv_obj_t *symbol=dock_label(badge,icon,0,0,52,dock_font_title,0x5eead4);lv_obj_set_style_text_align(symbol,LV_TEXT_ALIGN_CENTER,0);
- if((unsigned char)icon[0]>=0x80){lv_obj_set_style_transform_pivot_x(symbol,lv_pct(50),0);lv_obj_set_style_transform_pivot_y(symbol,lv_pct(50),0);lv_obj_set_style_transform_scale(symbol,384,0);}
- lv_obj_center(symbol);
+ if((unsigned char)icon[0]>=0x80){
+  /* Symbol glyphs use Montserrat's own line metrics, not the taller Chinese
+     font's baseline. Center the visible glyph box after scaling. */
+  const lv_font_t *font=&lv_font_montserrat_22;
+  lv_obj_set_style_text_font(symbol,font,0);
+  lv_obj_set_style_transform_pivot_x(symbol,lv_pct(50),0);lv_obj_set_style_transform_pivot_y(symbol,lv_pct(50),0);lv_obj_set_style_transform_scale(symbol,384,0);
+  lv_obj_center(symbol);
+  uint32_t code=0;const unsigned char *bytes=(const unsigned char*)icon;
+  if((bytes[0]&0xf0)==0xe0)code=((bytes[0]&15)<<12)|((bytes[1]&63)<<6)|(bytes[2]&63);
+  lv_font_glyph_dsc_t glyph={0};
+  if(code&&lv_font_get_glyph_dsc(font,&glyph,code,0)){
+   int top=font->line_height-font->base_line-glyph.box_h-glyph.ofs_y;
+   int offset=(font->line_height-2*top-glyph.box_h)*384/512;
+   lv_obj_set_style_translate_y(symbol,offset,0);
+   lv_font_glyph_release_draw_data(&glyph);
+  }
+ }else lv_obj_center(symbol);
  entry->running=dock_label(card,"运行中",194,16,84,dock_font_small,0x5eead4);lv_obj_set_style_text_align(entry->running,LV_TEXT_ALIGN_RIGHT,0);lv_obj_add_flag(entry->running,LV_OBJ_FLAG_HIDDEN);
  lv_obj_t *label=dock_label(card,title,18,82,256,dock_font_body,0xf8fafc);lv_obj_set_height(label,28);lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
  label=dock_label(card,description,18,118,256,dock_font_small,0x94a3b8);lv_obj_set_height(label,24);lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
@@ -78,4 +105,36 @@ int dock_catalog_image(const char *id,const unsigned char *pixels,int width,int 
  lv_obj_set_size(entry->image,48,48);lv_image_set_inner_align(entry->image,LV_IMAGE_ALIGN_CONTAIN);lv_image_set_antialias(entry->image,true);lv_obj_center(entry->image);
  lv_obj_set_style_image_recolor_opa(entry->image,LV_OPA_TRANSP,0);lv_obj_remove_flag(entry->image,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
  return 0;
+}
+
+/* Two rows per page; horizontal movement crosses pages in the same row.
+   Missing cells and outer edges keep the current selection. */
+int dock_catalog_move(int dx,int dy){
+ if(!catalog_count)return -1;
+ unsigned selected=catalog_selection;
+ int page=selected/4,row=(selected%4)/2,col=selected%2;
+ int column=page*2+col+dx,next_row=row+dy;
+ if(column>=0&&next_row>=0&&next_row<2){
+  unsigned next=(column/2)*4+next_row*2+column%2;
+  if(next<catalog_count)selected=next;
+ }
+ lv_obj_update_layout(catalog_list);
+ lv_obj_scroll_to_x(catalog_list,(selected/4)*PAGE_WIDTH,LV_ANIM_OFF);
+ catalog_focus(selected);
+ return (int)selected;
+}
+
+/* Physical confirm follows the same event path as a card tap. */
+int dock_catalog_activate(void){
+ if(!catalog_count||lv_screen_active()!=lv_obj_get_screen(catalog_list))return 0;
+ for(catalog_entry *entry=catalog_entries;entry;entry=entry->next){
+  if(entry->index==catalog_selection){dock_emit("","shell.open",entry->id);return 1;}
+ }
+ return 0;
+}
+
+void dock_catalog_image_fill(const char *id){
+ for(catalog_entry *entry=catalog_entries;entry;entry=entry->next)if(!strcmp(entry->id,id)&&entry->image){
+  lv_obj_t *badge=lv_obj_get_parent(entry->image);lv_obj_set_style_clip_corner(badge,true,0);lv_obj_set_size(entry->image,52,52);lv_obj_center(entry->image);return;
+ }
 }

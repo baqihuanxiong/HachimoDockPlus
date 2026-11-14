@@ -24,7 +24,10 @@ type Device interface {
 	Play(context.Context, io.Reader, int) error
 }
 
-type ALSA struct{ CaptureDevice, PlaybackDevice string }
+type ALSA struct {
+	CaptureDevice, PlaybackDevice string
+	Volume                        *Volume
+}
 
 func (a ALSA) Probe() error {
 	for _, name := range []string{"arecord", "aplay"} {
@@ -85,6 +88,11 @@ func (a ALSA) Record(ctx context.Context) (Capture, error) {
 }
 
 func (a ALSA) Play(ctx context.Context, pcm io.Reader, rate int) error {
+	release, err := prepareOutput(ctx, a.Volume)
+	if err != nil {
+		return err
+	}
+	defer release()
 	cmd := exec.CommandContext(ctx, "aplay", "-q", "-D", a.PlaybackDevice, "-t", "raw", "-f", "S16_LE", "-r", strconv.Itoa(rate), "-c", "1")
 	cmd.Stdin = pcm
 	cmd.Stderr = io.Discard

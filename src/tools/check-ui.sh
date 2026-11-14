@@ -5,3 +5,7 @@ cd "$(dirname "$0")/.."
 gcc -std=gnu11 -DLV_CONF_INCLUDE_SIMPLE -Iinternal/ui/lvgl -I.cache/lvgl \
   tests/native_ui.c build/native/lvgl/lib/liblvgl.a -lm -o build/native/ui-check
 build/native/ui-check "$(pwd)/.local/assets/wqy-microhei.ttc"
+
+gcc -std=gnu11 -DLV_CONF_INCLUDE_SIMPLE -Iinternal/ui/lvgl -I.cache/lvgl \
+  tests/music_ui.c build/native/lvgl/lib/liblvgl.a -lm -o build/native/music-ui-check
+build/native/music-ui-check "$(pwd)/.local/assets/wqy-microhei.ttc"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/platform/audio"
 	"hachimodockplus/internal/platform/connectivity"
 	"hachimodockplus/internal/preferences"
 	"path/filepath"
@@ -158,5 +159,60 @@ func TestModeChangesPreserveTheme(t *testing.T) {
 	state = a.Snapshot().Data.(State)
 	if state.Mode != "light" || state.Theme != "orange" {
 		t.Fatal(state)
+	}
+}
+
+func TestScreensaverEventPersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	prefs, _ := preferences.Load(path)
+	a := New(&fakeBackend{}, prefs)
+	defer a.Close()
+	a.Start(context.Background())
+	ready(t, a)
+	for _, id := range []string{"blank", "clock", "unknown"} {
+		if err := a.Handle(core.Event{Action: "screensaver.set", Text: id}); err != nil {
+			t.Fatal(err)
+		}
+		ready(t, a)
+		state := a.Snapshot().Data.(State)
+		if id == "unknown" {
+			if state.Screensaver != "clock" || a.Snapshot().Status == "操作完成" {
+				t.Fatal(a.Snapshot())
+			}
+		} else if state.Screensaver != id {
+			t.Fatal(state)
+		}
+	}
+	loaded, err := preferences.Load(path)
+	if err != nil || loaded.Snapshot().Screensaver != "clock" {
+		t.Fatal(loaded, err)
+	}
+}
+
+type volumeMixer struct{}
+
+func (volumeMixer) Apply(context.Context, int) error { return nil }
+func TestAudioVolumeRemainsAvailableDuringNetworkTask(t *testing.T) {
+	v, _ := audio.NewVolume("", volumeMixer{})
+	defer v.Close()
+	b := &fakeBackend{block: make(chan struct{}), started: make(chan struct{}, 1)}
+	prefs, _ := preferences.Load("")
+	a := New(b, prefs, v)
+	defer a.Close()
+	_ = a.Start(context.Background())
+	ready(t, a)
+	if err := a.Handle(core.Event{Action: "wifi.scan"}); err != nil {
+		t.Fatal(err)
+	}
+	<-b.started
+	if err := a.Handle(core.Event{Action: "volume.set", Text: "0"}); err != nil {
+		t.Fatal(err)
+	}
+	if s := a.Snapshot().Data.(State); s.Volume.Volume != 0 || !s.Busy {
+		t.Fatal(s)
+	}
+	v.Set(75)
+	if a.Snapshot().Data.(State).Volume.Volume != 75 {
+		t.Fatal("shared adjustment not reflected")
 	}
 }

@@ -33,7 +33,8 @@ func (p *settingsPage) Mount() error {
 	}
 	return nil
 }
-func (*settingsPage) Unmount() { C.dock_settings_unmount() }
+func (*settingsPage) Back() bool { return C.dock_settings_back() != 0 }
+func (*settingsPage) Unmount()   { C.dock_settings_unmount() }
 func flag(b bool) C.int {
 	if b {
 		return 1
@@ -46,6 +47,8 @@ func (p *settingsPage) Render(snapshot core.AppSnapshot) error {
 		return fmt.Errorf("设置页面收到错误状态")
 	}
 	withStrings([]string{s.Theme, s.Mode}, func(cs []*C.char) { C.dock_settings_theme(cs[0]); C.dock_settings_mode(cs[1]) })
+	withStrings([]string{s.Screensaver}, func(cs []*C.char) { C.dock_settings_screensaver(cs[0]) })
+	withStrings([]string{s.Volume.Error}, func(cs []*C.char) { C.dock_settings_volume(C.int(s.Volume.Volume), cs[0]) })
 	st := s.Connectivity
 	wifi := "未连接"
 	if st.SSID != "" {

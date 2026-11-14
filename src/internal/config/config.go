@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"hachimodockplus/internal/platform/controls"
 )
 
 type Service struct {
@@ -20,12 +22,14 @@ type Service struct {
 type Audio struct {
 	CaptureDevice  string `json:"capture_device"`
 	PlaybackDevice string `json:"playback_device"`
+	MixerCard      string `json:"mixer_card"`
 }
 type UI struct {
-	Timezone    string `json:"timezone"`
-	Framebuffer string `json:"framebuffer"`
-	Input       string `json:"input"`
-	Font        string `json:"font"`
+	Controls    controls.Options `json:"controls"`
+	Timezone    string           `json:"timezone"`
+	Framebuffer string           `json:"framebuffer"`
+	Input       string           `json:"input"`
+	Font        string           `json:"font"`
 }
 type Config struct {
 	DataDir string                     `json:"data_dir"`

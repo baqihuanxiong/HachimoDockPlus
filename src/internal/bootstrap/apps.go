@@ -4,21 +4,25 @@ package bootstrap
 
 import (
 	"context"
-	"hachimodockplus/internal/preferences"
 	"path/filepath"
 
+	"hachimodockplus/internal/apps/music"
 	app "hachimodockplus/internal/apps/picoclaw"
 	"hachimodockplus/internal/apps/settings"
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/platform/audio"
 	"hachimodockplus/internal/platform/battery"
 	"hachimodockplus/internal/platform/connectivity"
+	"hachimodockplus/internal/platform/netease"
 	"hachimodockplus/internal/platform/status"
+	"hachimodockplus/internal/preferences"
 	"hachimodockplus/internal/ui/lvgl"
 	"hachimodockplus/internal/ui/terminal"
 )
 
 type Desktop struct {
+	Audio       *audio.Volume
 	Preferences *preferences.Store
 	Status      *status.Monitor
 	Host        *core.Host
@@ -35,6 +39,10 @@ func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
 	if err != nil {
 		return nil, err
 	}
+	volume, err := audio.NewVolume(filepath.Join(cfg.DataDir, "volume.json"), audio.HardwareMixer{Card: cfg.Audio.MixerCard})
+	if err != nil {
+		return nil, err
+	}
 	registry, err := core.NewRegistry(core.Registration{
 		Manifest: app.Manifest,
 		New: func() (core.Application, error) {
@@ -42,17 +50,39 @@ func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
 			if err != nil {
 				return nil, err
 			}
+			services.Audio.Volume = volume
 			return app.New(services.Agent, services.ASR, services.TTS, services.Audio, services.Close), nil
 		},
-	}, core.Registration{Manifest: settings.Manifest, New: func() (core.Application, error) { return settings.New(connectivity.New(), prefs), nil }})
+	}, core.Registration{
+		Manifest: settings.Manifest,
+		New:      func() (core.Application, error) { return settings.New(connectivity.New(), prefs, volume), nil },
+	}, core.Registration{Manifest: music.Manifest, New: func() (core.Application, error) {
+		client, err := netease.New(filepath.Join(cfg.AppDataDir(music.ID), "session.json"))
+		if err != nil {
+			return nil, err
+		}
+		return music.New(client, &audio.StreamPlayer{Device: cfg.Audio.PlaybackDevice, Volume: volume}, volume), nil
+	}})
 	if err != nil {
+		volume.Close()
 		return nil, err
 	}
 	return &Desktop{
+		Audio:       volume,
 		Preferences: prefs,
 		Status:      monitor,
 		Host:        core.NewHost(ctx, registry),
-		Pages:       []lvgl.Page{lvgl.NewPicoClawPage(), lvgl.NewSettingsPage()},
-		Commands:    terminal.Commands{settings.ID: {"/refresh": "refresh", "/scan": "wifi.scan", "/bt-scan": "bt.scan"}, app.ID: {"": app.ActionSubmit, "/voice": app.ActionVoice, "/stop": app.ActionCancel, "/new": app.ActionNew}},
+		Pages:       []lvgl.Page{lvgl.NewPicoClawPage(), lvgl.NewSettingsPage(), lvgl.NewMusicPage()},
+		Commands: terminal.Commands{
+			music.ID:    {"/play": "play.toggle", "/next": "track.next", "/previous": "track.previous", "/logout": "logout"},
+			settings.ID: {"/refresh": "refresh", "/scan": "wifi.scan", "/bt-scan": "bt.scan"},
+			app.ID:      {"": app.ActionSubmit, "/voice": app.ActionVoice, "/stop": app.ActionCancel, "/new": app.ActionNew},
+		},
 	}, nil
+}
+
+func (d *Desktop) Close() error {
+	err := d.Host.Close()
+	d.Audio.Close()
+	return err
 }

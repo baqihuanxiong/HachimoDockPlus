@@ -4,6 +4,7 @@
 #include "../internal/ui/lvgl/statusbar.c"
 #include "../internal/ui/lvgl/theme.c"
 #include "../internal/ui/lvgl/catalog.c"
+#include "../internal/ui/lvgl/screensaver.c"
 #include "../internal/ui/lvgl/page_picoclaw.c"
 #include "../internal/ui/lvgl/page_settings.c"
 
@@ -25,8 +26,9 @@ static void swipe(int fd,int x,int y,int target_x,int target_y){
 int main(int argc,char **argv) {
     assert(argc==2);
     assert(dock_init(NULL,NULL,argv[1])==0);
+    assert(dock_catalog_activate()==0); /* empty catalog */
     dock_catalog_add("first","First","first test app","1");
-    dock_catalog_add("second","Second","second test app","2");
+    dock_catalog_add("second","Second","second test app",LV_SYMBOL_SETTINGS);
     for(int i=0;i<7;i++){char id[32];snprintf(id,sizeof(id),"extra-%d",i);dock_catalog_add(id,id,"extra test app","E");}
     assert(lv_obj_get_child_count(catalog_list)==3);
     assert(lv_obj_get_child_count(lv_obj_get_child(catalog_list,0))==4);
@@ -47,11 +49,26 @@ int main(int argc,char **argv) {
     assert(image_entry&&image_entry->image_pixels!=icon_pixels&&image_entry->image_data.data_size==8);
     assert(image_entry->image_pixels[2]==255&&image_entry->image_pixels[3]==128);
     assert(!lv_obj_has_flag(image_entry->image,LV_OBJ_FLAG_CLICKABLE));
+    dock_catalog_image_fill("first");lv_obj_update_layout(catalog);assert(lv_obj_get_width(image_entry->image)==52);assert(lv_obj_get_style_clip_corner(lv_obj_get_parent(image_entry->image),0));
     dock_catalog_running("first",1);assert(!lv_obj_has_flag(lv_obj_get_child(first,1),LV_OBJ_FLAG_HIDDEN));
     dock_catalog_running("first",0);assert(lv_obj_has_flag(lv_obj_get_child(first,1),LV_OBJ_FLAG_HIDDEN));
     dock_theme_set(0x7c3aed);
     assert(lv_color_eq(lv_obj_get_style_bg_color(lv_obj_get_child(catalog_dots,0),0),dock_color(0x7c3aed)));
     dock_theme_set(0x0f766e);
+    /* Verify the rendered gear itself is centered, including font baseline
+       and transform effects, rather than only checking the label rectangle. */
+    lv_refr_now(display);
+    lv_obj_t *gear_badge=lv_obj_get_child(lv_obj_get_child(lv_obj_get_child(catalog_list,0),1),0);
+    lv_obj_t *gear_symbol=lv_obj_get_child(gear_badge,0);
+    lv_area_t gear_area;lv_obj_get_coords(gear_badge,&gear_area);
+    lv_color_t ink=lv_obj_get_style_text_color(gear_symbol,0);
+    int gear_top=480,gear_bottom=-1;const unsigned char *rendered=dock_pixels();
+    for(int y=gear_area.y1;y<=gear_area.y2;y++)for(int x=gear_area.x1;x<=gear_area.x2;x++){
+      const unsigned char *p=rendered+((size_t)y*640+x)*4;
+      if(p[2]==ink.red&&p[1]==ink.green&&p[0]==ink.blue){if(y<gear_top)gear_top=y;if(y>gear_bottom)gear_bottom=y;}
+    }
+    assert(gear_bottom>=gear_top);
+    assert(abs((gear_top+gear_bottom)-(gear_area.y1+gear_area.y2))<=2);
     dock_catalog_header("11-14 20:30",80,1,4,2);
     lv_obj_update_layout(catalog);
     assert(!strcmp(lv_label_get_text(header_clock),"11-14 20:30"));
@@ -121,14 +138,39 @@ int main(int argc,char **argv) {
     lv_obj_scroll_to_x(catalog_list,600,LV_ANIM_OFF);assert(catalog_page_index==1);
     assert(lv_color_eq(lv_obj_get_style_bg_color(lv_obj_get_child(catalog_dots,1),0),dock_color(0x0f766e)));
     lv_obj_scroll_to_x(catalog_list,0,LV_ANIM_OFF);
+    assert(dock_catalog_move(-1,0)==0); /* outer edge keeps the first card */
+    assert(dock_catalog_move(1,0)==1);
+    assert(dock_catalog_move(0,1)==3);
+    assert(dock_catalog_move(1,0)==6&&catalog_page_index==1);
+    assert(dock_catalog_move(1,0)==7);
+    assert(dock_catalog_move(1,0)==7); /* missing bottom row on last page */
+    assert(dock_catalog_move(0,-1)==5);
+    assert(dock_catalog_move(1,0)==8&&catalog_page_index==2);
+    assert(dock_catalog_activate()==1);
+    assert(dock_poll(&event)==1&&!strcmp(event.action,"shell.open")&&!strcmp(event.text,"extra-6"));
+    assert(dock_catalog_move(1,0)==8); /* outer edge */
+    lv_obj_scroll_to_x(catalog_list,0,LV_ANIM_OFF);
+    assert(catalog_selection==0); /* touch page change resets selection */
+    assert(dock_catalog_move(0,1)==2);
+    dock_screensaver_show("clock");dock_screensaver_time("20:30:15","2026-11-14 Sat");
+    assert(lv_screen_active()==screensaver&&!strcmp(lv_label_get_text(saver_clock),"20:30:15"));
+    lv_obj_send_event(screensaver,LV_EVENT_CLICKED,NULL);
+    assert(dock_poll(&event)==1&&!strcmp(event.action,"shell.wake"));
+    assert(dock_catalog_activate()==0); /* SW2 cannot open a hidden card */
+    dock_screensaver_show("blank");assert(lv_obj_has_flag(saver_clock,LV_OBJ_FLAG_HIDDEN));
+    dock_show_catalog();
+    lv_obj_remove_state(first,LV_STATE_FOCUSED);
     for(int i=0;i<3;i++) {
         assert(dock_picoclaw_mount()==0);
+        assert(dock_catalog_activate()==0);
         dock_theme_appearance(0x0f766e,1);
         assert(lv_color_eq(lv_obj_get_style_bg_color(chat,0),dock_color(0xf3f5f9)));
         assert(lv_color_eq(lv_obj_get_style_text_color(history_label,0),dock_color(0x1e293b)));
         lv_refr_now(display);
         dock_theme_appearance(0x0f766e,0);
         dock_picoclaw_render("就绪","","","开始说话",0,"未接入音频设备",0);
+        lv_obj_remove_flag(keyboard,LV_OBJ_FLAG_HIDDEN);
+        assert(dock_picoclaw_back()==1&&dock_picoclaw_back()==0);
         lv_textarea_set_text(text_input,"hello");
         lv_obj_send_event(send_button,LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.app_id,"picoclaw")&&!strcmp(event.action,"submit")&&!strcmp(event.text,"hello"));
@@ -155,7 +197,7 @@ int main(int argc,char **argv) {
         assert(!lv_obj_has_flag(appearance_panel,LV_OBJ_FLAG_HIDDEN));
         lv_obj_update_layout(appearance_panel);
         lv_area_t last_color;lv_obj_get_coords(theme_choices[8].button,&last_color);
-        assert(last_color.y1>=362&&last_color.y2<438&&last_color.x2<640);
+        assert(last_color.y1>=310&&last_color.y2<362&&last_color.x2<640);
         dock_theme_appearance(0x0f766e,1);dock_settings_mode("light");
         lv_refr_now(display);
         assert(lv_color_eq(lv_obj_get_style_bg_color(settings_screen,0),dock_color(0xf3f5f9)));
@@ -173,6 +215,12 @@ int main(int argc,char **argv) {
         assert(lv_obj_has_state(theme_choices[1].button,LV_STATE_CHECKED));
         assert(lv_color_eq(lv_obj_get_style_bg_color(wifi_scan,0),dock_color(0x7c3aed)));
         assert(lv_color_eq(lv_obj_get_style_bg_color(theme_choices[0].button,0),dock_color(0x0f766e)));
+        assert(lv_obj_get_parent(saver_blank_button)==appearance_panel);
+        lv_area_t saver_bounds;lv_obj_get_coords(saver_blank_button,&saver_bounds);
+        assert(last_color.y2<saver_bounds.y1&&saver_bounds.y2<438);
+        lv_obj_send_event(saver_blank_button,LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"screensaver.set")&&!strcmp(event.text,"blank"));
+        open_join("","WPA-PSK");assert(dock_settings_back()==1&&!join_dialog&&dock_settings_back()==0);
         lv_obj_send_event(wifi_tab,LV_EVENT_CLICKED,NULL);
         dock_settings_network("0","Home","已保存",-45,1);
         dock_settings_network("","Cafe \" guest","WPA-PSK",-60,0);

@@ -29,6 +29,7 @@ const (
 // Capabilities document optional services; this is not a permission sandbox.
 type Manifest struct {
 	ID, Title, Description, Icon string
+	IconImageFullBleed           bool
 	IconImage                    string // Optional PNG path relative to the configuration file; Icon remains the fallback.
 	Capabilities                 []Capability
 }

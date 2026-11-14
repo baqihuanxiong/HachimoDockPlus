@@ -2,10 +2,17 @@
   "data_dir": ".local/data",
   "audio": {
     "capture_device": "default",
-    "playback_device": "default"
+    "playback_device": "default",
+    "mixer_card": "Device"
   },
   "ui": {
     "timezone": "Asia/Shanghai",
+    "controls": {
+      "disabled": false,
+      "swap_xy": false,
+      "invert_x": false,
+      "invert_y": false
+    },
     "framebuffer": "/dev/fb0",
     "input": "auto",
     "font": ".local/assets/wqy-microhei.ttc"

@@ -122,7 +122,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer desktop.Host.Close()
+	defer desktop.Close()
+	if *preview == "" {
+		desktop.Audio.Initialize()
+	}
 	if *page != "catalog" {
 		if err = desktop.Host.Open(*page); err != nil {
 			return err

@@ -1,4 +1,4 @@
-// Package preferences persists user appearance settings independently of credentials.
+// Package preferences persists user display settings independently of credentials.
 package preferences
 
 import (
@@ -27,8 +27,9 @@ func Find(id string) (Theme, bool) {
 }
 
 type Snapshot struct {
-	Theme string `json:"theme"`
-	Mode  string `json:"mode"`
+	Screensaver string `json:"screensaver"`
+	Theme       string `json:"theme"`
+	Mode        string `json:"mode"`
 }
 type Store struct {
 	mu    sync.Mutex
@@ -38,7 +39,7 @@ type Store struct {
 }
 
 func Load(path string) (*Store, error) {
-	s := &Store{path: path, state: Snapshot{Theme: "teal", Mode: "dark"}}
+	s := &Store{path: path, state: Snapshot{Theme: "teal", Mode: "dark", Screensaver: "clock"}}
 	if path == "" {
 		return s, nil
 	}
@@ -58,6 +59,9 @@ func Load(path string) (*Store, error) {
 	if s.state.Mode != "light" && s.state.Mode != "dark" {
 		return nil, errors.New("外观偏好包含未知显示模式")
 	}
+	if s.state.Screensaver != "clock" && s.state.Screensaver != "blank" {
+		return nil, errors.New("偏好包含未知屏保")
+	}
 	return s, nil
 }
 func (s *Store) Snapshot() Snapshot { s.mu.Lock(); defer s.mu.Unlock(); return s.state }
@@ -72,6 +76,12 @@ func (s *Store) SetMode(mode string) error {
 		return errors.New("不支持此显示模式")
 	}
 	return s.update(func(next *Snapshot) { next.Mode = mode })
+}
+func (s *Store) SetScreensaver(id string) error {
+	if id != "clock" && id != "blank" {
+		return errors.New("不支持此屏保")
+	}
+	return s.update(func(next *Snapshot) { next.Screensaver = id })
 }
 func (s *Store) update(change func(*Snapshot)) error {
 	s.write.Lock()

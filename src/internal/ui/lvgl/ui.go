@@ -23,6 +23,7 @@ import (
 
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/platform/controls"
 	"hachimodockplus/internal/platform/status"
 	"hachimodockplus/internal/preferences"
 )
@@ -53,6 +54,12 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		return fmt.Errorf("LVGL 初始化失败（%d）：检查显示、触摸权限及字体文件", int(code))
 	}
 	defer C.dock_close()
+	var hardware <-chan controls.Event
+	if preview == "" && !cfg.UI.Controls.Disabled {
+		var stopControls func()
+		hardware, stopControls = controls.Start(ctx, cfg.UI.Controls)
+		defer stopControls()
+	}
 	currentAppearance := preferences.Snapshot{}
 	applyTheme := func() {
 		selected := prefs.Snapshot()
@@ -75,6 +82,9 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 			if pixels, w, h, err := iconPixels(cfg.Resolve(m.IconImage)); err == nil {
 				withStrings([]string{m.ID}, func(cs []*C.char) {
 					C.dock_catalog_image(cs[0], (*C.uchar)(unsafe.Pointer(&pixels[0])), C.int(w), C.int(h))
+					if m.IconImageFullBleed {
+						C.dock_catalog_image_fill(cs[0])
+					}
 				})
 			}
 		}
@@ -97,6 +107,27 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 			current.Unmount()
 		}
 	}()
+	sleeping := false
+	updateSaverClock := func(now time.Time) {
+		clock, date := "等待对时", ""
+		if now.Year() >= 2024 {
+			local := now.In(monitor.Location)
+			clock = local.Format("15:04:05")
+			date = local.Format("2006-01-02 Mon")
+		}
+		withStrings([]string{clock, date}, func(cs []*C.char) { C.dock_screensaver_time(cs[0], cs[1]) })
+	}
+	wake := func() { sleeping = false; C.dock_show_catalog() }
+	back := func() {
+		if sleeping {
+			wake()
+			return
+		}
+		if handler, ok := current.(interface{ Back() bool }); ok && handler.Back() {
+			return
+		}
+		h.Back()
+	}
 	tick := time.NewTicker(8 * time.Millisecond)
 	defer tick.Stop()
 	var revision, appRevision uint64
@@ -106,11 +137,55 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		select {
 		case <-ctx.Done():
 			return nil
+		case e := <-hardware:
+			if !e.Pressed {
+				continue
+			}
+			if !sleeping && current != nil {
+				if handler, ok := current.(interface{ Hardware(controls.Key) string }); ok {
+					if action := handler.Hardware(e.Key); action != "" {
+						_ = h.Dispatch(core.Event{AppID: current.ID(), Action: action})
+						continue
+					}
+				}
+			}
+			switch e.Key {
+			case controls.SW2:
+				if !sleeping && current == nil && h.Snapshot().Active == "" {
+					C.dock_catalog_activate()
+				}
+			case controls.SW3:
+				if !sleeping && current == nil && h.Snapshot().Active == "" {
+					sleeping = true
+					withStrings([]string{prefs.Snapshot().Screensaver}, func(cs []*C.char) { C.dock_screensaver_show(cs[0]) })
+					updateSaverClock(time.Now())
+				} else {
+					back()
+				}
+			case controls.Up, controls.Down, controls.Left, controls.Right:
+				if !sleeping && current == nil && h.Snapshot().Active == "" {
+					dx, dy := 0, 0
+					switch e.Key {
+					case controls.Up:
+						dy = -1
+					case controls.Down:
+						dy = 1
+					case controls.Left:
+						dx = -1
+					case controls.Right:
+						dx = 1
+					}
+					C.dock_catalog_move(C.int(dx), C.int(dy))
+				}
+			}
 		case <-tick.C:
 			s := h.Snapshot()
 			applyTheme()
 			if time.Since(headerUpdated) >= time.Second {
 				headerUpdated = time.Now()
+				if sleeping {
+					updateSaverClock(headerUpdated)
+				}
 				updateRunning(s)
 				st := monitor.Snapshot()
 				clock := monitor.Clock(headerUpdated)
@@ -150,7 +225,15 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 			var native C.dock_event
 			for C.dock_poll(&native) != 0 {
 				e := core.Event{AppID: C.GoString(&native.app_id[0]), Action: C.GoString(&native.action[0]), Text: C.GoString(&native.text[0])}
+				if sleeping {
+					if e.Action == "shell.wake" {
+						wake()
+					}
+					continue
+				}
 				switch e.Action {
+				case "shell.wake":
+					// Ignore a stale wake after physical navigation.
 				case core.ActionOpen:
 					if e.AppID == "" {
 						_ = h.Open(e.Text)

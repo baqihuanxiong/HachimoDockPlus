@@ -76,3 +76,8 @@ void dock_picoclaw_render(const char *status,const char *partial,const char *his
 void dock_picoclaw_unmount(void){
  if(chat){lv_obj_delete(chat);chat=NULL;}
 }
+
+int dock_picoclaw_back(void){
+ if(keyboard&&!lv_obj_has_flag(keyboard,LV_OBJ_FLAG_HIDDEN)){lv_obj_add_flag(keyboard,LV_OBJ_FLAG_HIDDEN);lv_obj_set_y(text_input,366);lv_obj_set_y(send_button,366);return 1;}
+ return 0;
+}

@@ -19,7 +19,7 @@
 #define W 640
 #define H 480
 static lv_obj_t *catalog;
-lv_font_t *dock_font_body,*dock_font_title,*dock_font_small;
+lv_font_t *dock_font_body,*dock_font_title,*dock_font_small,*dock_font_clock;
 static lv_display_t *display;
 static unsigned char *pixels;
 static void *draw_buffer;
@@ -146,7 +146,8 @@ int dock_init(const char *framebuffer,const char *input,const char *font) {
     dock_font_body=lv_tiny_ttf_create_file(path,22);
     dock_font_title=lv_tiny_ttf_create_file(path,30);
     dock_font_small=lv_tiny_ttf_create_file(path,18);
-    if(!dock_font_body||!dock_font_title||!dock_font_small)return -5;
+    dock_font_clock=lv_tiny_ttf_create_file(path,64);
+    if(!dock_font_body||!dock_font_title||!dock_font_small||!dock_font_clock)return -5;
     /* The Chinese font lacks LVGL's private-use keyboard icon glyphs. */
     dock_font_body->fallback=&lv_font_montserrat_22;
     dock_font_title->fallback=&lv_font_montserrat_22;
@@ -163,13 +164,17 @@ void dock_show_catalog(void){lv_screen_load(catalog);}
 void dock_tick(void){lv_timer_handler();}
 int dock_poll(dock_event *event){if(event_read==event_write)return 0;*event=events[event_read++%16];return 1;}
 const unsigned char *dock_pixels(void){return pixels;}
+void dock_screensaver_close(void);
 void dock_close(void){
+ if(catalog)dock_show_catalog();
+ dock_screensaver_close();
  if(catalog){dock_show_catalog();lv_obj_clean(catalog);}
  dock_theme_close();
+ if(dock_font_clock)lv_tiny_ttf_destroy(dock_font_clock);
  if(dock_font_body)lv_tiny_ttf_destroy(dock_font_body);
  if(dock_font_title)lv_tiny_ttf_destroy(dock_font_title);
  if(dock_font_small)lv_tiny_ttf_destroy(dock_font_small);
- dock_font_body=dock_font_title=dock_font_small=NULL;
+ dock_font_body=dock_font_title=dock_font_small=dock_font_clock=NULL;
  lv_deinit();
  free(pixels);free(draw_buffer);pixels=NULL;draw_buffer=NULL;
  if(tty_fd>=0){ioctl(tty_fd,KDSETMODE,KD_TEXT);close(tty_fd);tty_fd=-1;}

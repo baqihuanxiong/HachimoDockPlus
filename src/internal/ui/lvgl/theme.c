@@ -1,7 +1,7 @@
 //go:build lvgl && cgo
 #include "ui_native.h"
 #include "bridge.h"
-static lv_style_t accent_button,accent_surface,accent_text;
+static lv_style_t accent_button,accent_surface,accent_text,accent_focus;
 static lv_display_t *theme_display;
 static unsigned theme_primary=0x0f766e;
 static int theme_light;
@@ -30,6 +30,7 @@ unsigned dock_theme_resolve(unsigned rgb){
 void dock_theme_appearance(unsigned rgb,int light){
  theme_primary=rgb&0xffffff;theme_light=!!light;
  lv_style_set_bg_color(&accent_button,dock_color(theme_primary));
+ lv_style_set_outline_color(&accent_focus,dock_color(theme_primary));
  lv_style_set_bg_color(&accent_surface,dock_color(blend(theme_primary,theme_light?0xffffff:0x121d2c,theme_light?30:85)));
  lv_style_set_text_color(&accent_text,dock_color(theme_light?theme_primary:blend(theme_primary,0xffffff,110)));
  for(unsigned i=0;i<ROLE_COUNT(backgrounds);i++)lv_style_set_bg_color(&backgrounds[i].style,dock_color(theme_light?backgrounds[i].light:backgrounds[i].dark));
@@ -38,20 +39,20 @@ void dock_theme_appearance(unsigned rgb,int light){
   lv_theme_t *theme=lv_theme_default_init(theme_display,dock_color(theme_primary),dock_color(0x6366f1),!theme_light,dock_font_body);
   lv_display_set_theme(theme_display,theme);
  }
- lv_obj_report_style_change(&accent_button);lv_obj_report_style_change(&accent_surface);lv_obj_report_style_change(&accent_text);
+ lv_obj_report_style_change(&accent_focus);lv_obj_report_style_change(&accent_button);lv_obj_report_style_change(&accent_surface);lv_obj_report_style_change(&accent_text);
  for(unsigned i=0;i<ROLE_COUNT(backgrounds);i++)lv_obj_report_style_change(&backgrounds[i].style);
  for(unsigned i=0;i<ROLE_COUNT(foregrounds);i++)lv_obj_report_style_change(&foregrounds[i].style);
  if(theme_display)lv_obj_invalidate(lv_display_get_screen_active(theme_display));
 }
 void dock_theme_set(unsigned rgb){dock_theme_appearance(rgb,theme_light);}
 void dock_theme_init(lv_display_t *display){
- lv_style_init(&accent_button);lv_style_init(&accent_surface);lv_style_init(&accent_text);
+ lv_style_init(&accent_focus);lv_style_init(&accent_button);lv_style_init(&accent_surface);lv_style_init(&accent_text);
  for(unsigned i=0;i<ROLE_COUNT(backgrounds);i++)lv_style_init(&backgrounds[i].style);
  for(unsigned i=0;i<ROLE_COUNT(foregrounds);i++)lv_style_init(&foregrounds[i].style);
  theme_display=display;dock_theme_appearance(0x0f766e,0);
 }
 void dock_theme_close(void){
- theme_display=NULL;lv_style_reset(&accent_button);lv_style_reset(&accent_surface);lv_style_reset(&accent_text);
+ theme_display=NULL;lv_style_reset(&accent_focus);lv_style_reset(&accent_button);lv_style_reset(&accent_surface);lv_style_reset(&accent_text);
  for(unsigned i=0;i<ROLE_COUNT(backgrounds);i++)lv_style_reset(&backgrounds[i].style);
  for(unsigned i=0;i<ROLE_COUNT(foregrounds);i++)lv_style_reset(&foregrounds[i].style);
 }
@@ -77,3 +78,5 @@ void dock_theme_button(lv_obj_t *obj,int active){
 }
 void dock_theme_surface(lv_obj_t *obj){dock_theme_background(obj,0x134e4a,0);}
 void dock_theme_text(lv_obj_t *obj){dock_theme_foreground(obj,0x5eead4,0);}
+
+void dock_theme_focus(lv_obj_t *obj){lv_obj_add_style(obj,&accent_focus,LV_STATE_FOCUSED);}

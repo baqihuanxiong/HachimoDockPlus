@@ -171,3 +171,5 @@ tools/deploy.sh root@192.168.4.202
 PNG 由 Go 标准库解码并转换为带透明度的 BGRA，输入限制 4 MiB、宽高各不超过 512 像素；C 侧复制像素数据并负责缓存和释放。显示时在 48×48 区域等比缩放，不随主题色重着色，图片区域仍由整张卡片处理点击。不需要在板端联网或启用额外 PNG 解码库。
 
 内置图片放在 `src/assets/app-icons/` 并记录来源与许可；`bootstrap.sh` 复制到本机 `.local/assets/app-icons/`，部署脚本复制到板端 `assets/app-icons/`。PicoClaw 官方图标的来源、固定提交与校验值见该资源目录的 README。
+
+应用图标需要铺满圆角容器时，可设置 `Manifest.IconImageFullBleed: true`。这会将图片绘制到完整的 52×52 图标区域，并在父容器裁切圆角；图片本身应填满背景，避免透明边缘露出底色。默认仍保持 48×48 的等比图像。

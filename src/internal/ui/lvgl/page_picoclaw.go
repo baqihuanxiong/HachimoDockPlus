@@ -73,3 +73,5 @@ func (p *picoPage) Render(snapshot core.AppSnapshot) error {
 	C.dock_picoclaw_render(cs[0], cs[1], cs[2], cs[3], C.int(flag), cs[4], C.int(busy))
 	return nil
 }
+
+func (*picoPage) Back() bool { return C.dock_picoclaw_back() != 0 }

@@ -5,18 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/platform/audio"
 	"hachimodockplus/internal/platform/connectivity"
 	"hachimodockplus/internal/preferences"
 )
 
 const ID = "settings"
 
-var Manifest = core.Manifest{ID: ID, Title: "设置", Description: "网络、蓝牙与外观", Icon: "\uf013", Capabilities: []core.Capability{core.Network}}
+var Manifest = core.Manifest{ID: ID, Title: "设置", Description: "网络、蓝牙、音频与外观", Icon: "\uf013", Capabilities: []core.Capability{core.Network}}
 
 type Backend interface {
 	Read(context.Context) connectivity.State
@@ -28,14 +30,17 @@ type Backend interface {
 	Bluetooth(context.Context, string, string) error
 }
 type State struct {
+	Volume       audio.VolumeState
 	Connectivity connectivity.State
 	Theme        string
+	Screensaver  string
 	Mode         string
 	Busy         bool
 }
 type App struct {
 	mu              sync.Mutex
 	worker          sync.Mutex
+	volume          *audio.Volume
 	backend         Backend
 	preferences     *preferences.Store
 	state           State
@@ -47,8 +52,12 @@ type App struct {
 	closed          bool
 }
 
-func New(b Backend, prefs *preferences.Store) *App {
-	return &App{backend: b, preferences: prefs, status: "读取连接状态…"}
+func New(b Backend, prefs *preferences.Store, volumes ...*audio.Volume) *App {
+	a := &App{backend: b, preferences: prefs, status: "读取连接状态…"}
+	if len(volumes) > 0 {
+		a.volume = volumes[0]
+	}
+	return a
 }
 func (a *App) Start(ctx context.Context) error {
 	a.mu.Lock()
@@ -95,7 +104,7 @@ func (a *App) Start(ctx context.Context) error {
 						status = "操作超时，请检查密码或设备配对模式"
 					}
 				}
-				if e.Action == "theme.set" || e.Action == "mode.set" {
+				if e.Action == "theme.set" || e.Action == "mode.set" || e.Action == "screensaver.set" {
 					a.mu.Lock()
 					if epoch == a.epoch {
 						a.state.Busy = false
@@ -138,6 +147,8 @@ func (a *App) perform(ctx context.Context, e core.Event) error {
 		return nil
 	case "theme.set":
 		return a.preferences.SetTheme(e.Text)
+	case "screensaver.set":
+		return a.preferences.SetScreensaver(e.Text)
 	case "mode.set":
 		return a.preferences.SetMode(e.Text)
 	case "wifi.scan":
@@ -159,7 +170,29 @@ func (a *App) perform(ctx context.Context, e core.Event) error {
 }
 func (a *App) Handle(e core.Event) error {
 	switch e.Action {
-	case "mode.set", "theme.set", "refresh", "wifi.scan", "wifi.join", "wifi.connect", "wifi.disconnect", "wifi.forget", "bt.on", "bt.off", "bt.scan", "bt.pair", "bt.connect", "bt.disconnect", "bt.remove":
+	case "volume.set", "volume.up", "volume.down":
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		if a.closed || a.cancel == nil {
+			return core.ErrInactive
+		}
+		if a.volume == nil {
+			return errors.New("音频服务不可用")
+		}
+		switch e.Action {
+		case "volume.set":
+			n, err := strconv.Atoi(e.Text)
+			if err != nil {
+				return errors.New("音量无效")
+			}
+			a.volume.Set(n)
+		case "volume.up":
+			a.volume.Adjust(5)
+		case "volume.down":
+			a.volume.Adjust(-5)
+		}
+		return nil
+	case "screensaver.set", "mode.set", "theme.set", "refresh", "wifi.scan", "wifi.join", "wifi.connect", "wifi.disconnect", "wifi.forget", "bt.on", "bt.off", "bt.scan", "bt.pair", "bt.connect", "bt.disconnect", "bt.remove":
 	default:
 		return core.ErrUnknownAction
 	}
@@ -203,7 +236,13 @@ func (a *App) Snapshot() core.AppSnapshot {
 	appearance := a.preferences.Snapshot()
 	s.Theme = appearance.Theme
 	s.Mode = appearance.Mode
+	s.Screensaver = appearance.Screensaver
 	s.Connectivity.Networks = append([]connectivity.Network(nil), s.Connectivity.Networks...)
 	s.Connectivity.Devices = append([]connectivity.Device(nil), s.Connectivity.Devices...)
-	return core.AppSnapshot{Revision: a.revision, Status: a.status, Text: s.Connectivity.Summary() + "\n主题: " + s.Theme + " / " + s.Mode, Data: s}
+	revision := a.revision
+	if a.volume != nil {
+		s.Volume = a.volume.Snapshot()
+		revision += s.Volume.Revision
+	}
+	return core.AppSnapshot{Revision: revision, Status: a.status, Text: s.Connectivity.Summary() + "\n主题: " + s.Theme + " / " + s.Mode, Data: s}
 }

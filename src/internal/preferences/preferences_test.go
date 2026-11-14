@@ -113,3 +113,30 @@ func TestModeMigrationAndIndependentSettings(t *testing.T) {
 		t.Fatal("concurrent settings lost", got)
 	}
 }
+
+func TestScreensaverMigrationAndPersistence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	if err := os.WriteFile(path, []byte(`{"theme":"teal","mode":"dark"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Snapshot().Screensaver != "clock" {
+		t.Fatal(s.Snapshot())
+	}
+	if err = s.SetScreensaver("blank"); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SetMode("light"); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil || loaded.Snapshot().Screensaver != "blank" || loaded.Snapshot().Mode != "light" {
+		t.Fatal(loaded, err)
+	}
+	if s.SetScreensaver("pet") == nil || s.Snapshot().Screensaver != "blank" {
+		t.Fatal("invalid saver committed")
+	}
+}
