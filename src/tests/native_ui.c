@@ -23,6 +23,47 @@ static void swipe(int fd,int x,int y,int target_x,int target_y){
  send_input(fd,EV_ABS,ABS_MT_TRACKING_ID,-1);send_input(fd,EV_SYN,SYN_REPORT,0);lv_indev_read(touch_device);settle();
 }
 
+/* A populated reply must occupy layout space and draw glyphs inside the chat
+   viewport, including after replacing an empty streaming placeholder. */
+static void assert_reply_visible(void){
+    lv_refr_now(display);
+    lv_obj_t *row=lv_obj_get_child(history_box,-1);
+    lv_obj_t *reply=lv_obj_get_child(row,0);
+    assert(lv_obj_get_height(reply)>=lv_font_get_line_height(dock_font_body));
+    assert(lv_obj_get_height(row)>=lv_obj_get_height(reply));
+    lv_color_t background=lv_obj_get_style_bg_color(history_box,0);
+    for(unsigned i=0;i<lv_spangroup_get_span_count(reply);i++){
+        lv_style_value_t color;
+        assert(lv_style_get_prop(lv_span_get_style(lv_spangroup_get_child(reply,i)),LV_STYLE_TEXT_COLOR,&color)==LV_STYLE_RES_FOUND);
+        assert(abs((int)lv_color_brightness(color.color)-(int)lv_color_brightness(background))>=80);
+    }
+    lv_area_t text_area,viewport;lv_obj_get_coords(reply,&text_area);lv_obj_get_coords(history_box,&viewport);
+    assert(text_area.y2>=viewport.y1&&text_area.y1<=viewport.y2);
+    lv_color_t ink=dock_color(dock_theme_resolve(0xe2e8f0));
+    const unsigned char *pixels=dock_pixels();int glyph_pixels=0;
+    for(int y=LV_MAX(text_area.y1,viewport.y1);y<=LV_MIN(text_area.y2,viewport.y2);y++)
+        for(int x=LV_MAX(text_area.x1,viewport.x1);x<=LV_MIN(text_area.x2,viewport.x2);x++){
+            const unsigned char *p=pixels+((size_t)y*640+x)*4;
+            if(p[2]==ink.red&&p[1]==ink.green&&p[0]==ink.blue)glyph_pixels++;
+        }
+    assert(glyph_pixels>0);
+}
+
+static void assert_streamed_markdown(const char *source,const char *expected){
+    char history[2048],rendered[2048]="";
+    snprintf(history,sizeof(history),"a%zu:%s",strlen(source),source);
+    dock_picoclaw_render("正在回复…","","",history,"",1,0,1,1,0);
+    lv_obj_t *reply=lv_obj_get_child(lv_obj_get_child(history_box,-1),0);
+    for(unsigned i=0;i<lv_spangroup_get_span_count(reply);i++)
+        strcat(rendered,lv_span_get_text(lv_spangroup_get_child(reply,i)));
+    assert(!strcmp(rendered,expected));
+    lv_style_value_t font;
+    assert(lv_style_get_prop(lv_span_get_style(lv_spangroup_get_child(reply,0)),LV_STYLE_TEXT_FONT,&font)==LV_STYLE_RES_FOUND);
+    assert(font.ptr==dock_font_title);
+    assert(lv_obj_has_state(send_button,LV_STATE_DISABLED)); /* Still streaming. */
+    lv_refr_now(display);
+}
+
 int main(int argc,char **argv) {
     assert(argc==2);
     assert(dock_init(NULL,NULL,argv[1])==0);
@@ -96,6 +137,16 @@ int main(int argc,char **argv) {
         assert(!glyph.is_placeholder&&glyph.resolved_font==&lv_font_montserrat_22);
         lv_font_glyph_release_draw_data(&glyph);
     }
+    const uint32_t emoji[]={0x1f99e,0x1f604,0x1f44b,0x2764};
+    const lv_font_t *chat_fonts[]={dock_font_body,dock_font_title,dock_font_small};
+    for(unsigned f=0;f<sizeof(chat_fonts)/sizeof(chat_fonts[0]);f++)
+        for(unsigned i=0;i<sizeof(emoji)/sizeof(emoji[0]);i++){
+            lv_font_glyph_dsc_t glyph={0};
+            assert(lv_font_get_glyph_dsc(chat_fonts[f],&glyph,emoji[i],0));
+            assert(!glyph.is_placeholder&&glyph.box_w>0&&glyph.box_h>0);
+            assert(lv_font_get_glyph_bitmap(&glyph,NULL));
+            lv_font_glyph_release_draw_data(&glyph);
+        }
     lv_display_set_resolution(display,480,640);
     lv_display_set_rotation(display,LV_DISPLAY_ROTATION_270);
     lv_obj_update_layout(catalog);
@@ -165,10 +216,51 @@ int main(int argc,char **argv) {
         assert(dock_catalog_activate()==0);
         dock_theme_appearance(0x0f766e,1);
         assert(lv_color_eq(lv_obj_get_style_bg_color(chat,0),dock_color(0xf3f5f9)));
-        assert(lv_color_eq(lv_obj_get_style_text_color(history_label,0),dock_color(0x1e293b)));
+        assert(lv_color_eq(lv_obj_get_style_text_color(hint_label,0),dock_color(0x52627a)));
         lv_refr_now(display);
         dock_theme_appearance(0x0f766e,0);
-        dock_picoclaw_render("就绪","","","开始说话",0,"未接入音频设备",0);
+        dock_picoclaw_render("就绪","","按住 SW1 说话","","",0,0,0,1,0);
+        assert_reply_visible();
+        lv_area_t title_area,status_area,history_area;
+        lv_obj_get_coords(lv_obj_get_child(chat,1),&title_area);
+        lv_obj_get_coords(status_label,&status_area);lv_obj_get_coords(history_box,&history_area);
+        assert(status_area.y1>=title_area.y1&&status_area.y2<=title_area.y2);
+        assert(status_area.x1>title_area.x2&&status_area.x2<510);
+        assert(history_area.y1==72&&lv_obj_get_height(history_box)==274);
+        lv_area_t clear_area,send_area,stop_area;
+        lv_obj_get_coords(clear_button,&clear_area);lv_obj_get_coords(send_button,&send_area);lv_obj_get_coords(speech_stop,&stop_area);
+        assert(stop_area.x1==clear_area.x1&&stop_area.x2==send_area.x2);
+        dock_picoclaw_render("思考中","","","u2:hia0:","",1,0,1,1,0);
+        const char *replies[]={"嗨！我是 PicoClaw 🦞 有什么想聊的或者需要帮忙的吗？😄","# 回复\n你好，**欢迎**使用 `PicoClaw`。\n- 第一条建议\n- 第二条建议"};
+        for(unsigned n=0;n<sizeof(replies)/sizeof(replies[0]);n++){
+            char history[1024];snprintf(history,sizeof(history),"u2:hia%zu:%s",strlen(replies[n]),replies[n]);
+            dock_picoclaw_render("回复中","","",history,"",1,0,1,1,0);
+            assert_reply_visible();
+        }
+        assert_streamed_markdown("# 标题\n**正在生成","标题\n正在生成");
+        assert_streamed_markdown("# 标题\n**正在生成**\n- 第一条\n`**literal**`\n```go\na()\nb()\n```",
+                                 "标题\n正在生成\n• 第一条\n**literal**\na()\nb()");
+        dock_picoclaw_render("准备就绪","","","","",1,0,0,1,0);
+        assert_reply_visible();
+        dock_theme_appearance(0x0f766e,1);
+        assert_reply_visible();
+        char light_history[1024];snprintf(light_history,sizeof(light_history),"a%zu:%s",strlen(replies[0]),replies[0]);
+        dock_picoclaw_render("准备就绪","","",light_history,"",1,0,0,1,0);
+        assert_reply_visible();
+        dock_theme_appearance(0x0f766e,0);
+        assert_reply_visible();
+        assert(lv_obj_has_state(speech_switch,LV_STATE_CHECKED));
+        assert(lv_obj_has_state(speech_stop,LV_STATE_DISABLED));
+        lv_obj_remove_state(speech_switch,LV_STATE_CHECKED);
+        lv_obj_send_event(speech_switch,LV_EVENT_VALUE_CHANGED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"speech.set")&&!strcmp(event.text,"false"));
+        dock_picoclaw_render("正在播放回复…","","",light_history,"",1,0,1,1,1);
+        assert(lv_obj_has_state(speech_switch,LV_STATE_CHECKED)&&!lv_obj_has_state(speech_stop,LV_STATE_DISABLED));
+        assert(dock_poll(&event)==0); /* Applying state must not emit switch events. */
+        lv_obj_send_event(speech_stop,LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"speech.stop"));
+        dock_picoclaw_render("已停止","","",light_history,"",1,0,0,0,0);
+        assert(!lv_obj_has_state(speech_switch,LV_STATE_CHECKED)&&lv_obj_has_state(speech_stop,LV_STATE_DISABLED));
         lv_obj_remove_flag(keyboard,LV_OBJ_FLAG_HIDDEN);
         assert(dock_picoclaw_back()==1&&dock_picoclaw_back()==0);
         lv_textarea_set_text(text_input,"hello");
@@ -193,6 +285,49 @@ int main(int argc,char **argv) {
         dock_settings_theme("teal");
         assert(lv_color_eq(lv_obj_get_style_bg_color(theme_choices[0].button,0),dock_color(0x0f766e)));
         dock_settings_render("就绪","Home 192.168.1.2","蓝牙已开启",1,1,0);
+        dock_settings_system(1,0,1,"dockconfig","请先设置共享账号","\\\\192.168.1.2\\HachimoConfig");
+        lv_obj_send_event(system_tab,LV_EVENT_CLICKED,NULL);
+        assert(!lv_obj_has_flag(system_panel,LV_OBJ_FLAG_HIDDEN));
+        assert(lv_obj_get_parent(audio_slider)==system_panel);
+        assert(abs(lv_obj_get_y(smb_switch)-lv_obj_get_y(smb_account_button))<=12);
+        dock_settings_audio("speaker","","","");
+        assert(lv_obj_has_state(audio_bluetooth,LV_STATE_DISABLED));
+        dock_settings_audio("bluetooth","11:22:33:44:55:66","测试耳机 (11:22:33:44:55:66)","11:22:33:44:55:66");
+        assert(audio_device_count==1&&!lv_obj_has_state(audio_bluetooth,LV_STATE_DISABLED));
+        lv_obj_send_event(audio_bluetooth,LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"audio.bluetooth")&&!strcmp(event.text,"11:22:33:44:55:66"));
+        lv_obj_send_event(audio_spdif,LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"audio.output")&&!strcmp(event.text,"spdif"));
+        dock_settings_audio("spdif","11:22:33:44:55:66","测试耳机 (11:22:33:44:55:66)","11:22:33:44:55:66");
+        assert(dock_poll(&event)==0); /* Rendering cannot change preferences. */
+        lv_obj_update_layout(system_panel);
+        lv_obj_scroll_to_view(system_restart_button,LV_ANIM_OFF);
+        lv_obj_update_layout(system_panel);
+        lv_area_t restart_bounds;lv_obj_get_coords(system_restart_button,&restart_bounds);
+        assert(restart_bounds.y1>=106&&restart_bounds.y2<480);
+        lv_obj_send_event(smb_account_button,LV_EVENT_CLICKED,NULL);
+        assert(system_dialog&&lv_textarea_get_password_mode(smb_password_input));
+        lv_textarea_set_text(smb_username_input,"docktest");
+        lv_textarea_set_text(smb_password_input,"long\"password\\123");
+        dock_settings_system(1,0,1,"different","服务状态刷新","test-address");
+        assert(!strcmp(lv_textarea_get_text(smb_username_input),"docktest"));
+        assert(!strcmp(lv_textarea_get_text(smb_password_input),"long\"password\\123"));
+        lv_obj_update_layout(system_dialog);
+        lv_area_t system_keyboard_bounds;lv_obj_get_coords(system_keyboard,&system_keyboard_bounds);
+        assert(system_keyboard_bounds.y1>=262&&system_keyboard_bounds.y2<480);
+        lv_obj_send_event(lv_obj_get_child(system_dialog,3),LV_EVENT_CLICKED,NULL);
+        assert(!system_dialog&&!smb_password_input);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"smb.account"));
+        assert(strstr(event.text,"docktest")&&strstr(event.text,"long\\\"password\\\\123"));
+        lv_obj_add_state(smb_switch,LV_STATE_CHECKED);lv_obj_send_event(smb_switch,LV_EVENT_VALUE_CHANGED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"smb.set")&&!strcmp(event.text,"true"));
+        dock_settings_system(1,0,1,"docktest","共享已关闭","test-address");
+        assert(dock_poll(&event)==0); /* Rendering switch state cannot trigger a write. */
+        lv_obj_send_event(system_restart_button,LV_EVENT_CLICKED,NULL);
+        assert(system_dialog&&dock_settings_back()==1&&!system_dialog);
+        lv_obj_send_event(system_restart_button,LV_EVENT_CLICKED,NULL);
+        lv_obj_send_event(lv_obj_get_child(system_dialog,2),LV_EVENT_CLICKED,NULL);
+        assert(!system_dialog&&dock_poll(&event)==1&&!strcmp(event.action,"system.restart"));
         lv_obj_send_event(appearance_tab,LV_EVENT_CLICKED,NULL);
         assert(!lv_obj_has_flag(appearance_panel,LV_OBJ_FLAG_HIDDEN));
         lv_obj_update_layout(appearance_panel);
@@ -208,7 +343,7 @@ int main(int argc,char **argv) {
         lv_obj_send_event(mode_dark_button,LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"mode.set")&&!strcmp(event.text,"dark"));
         dock_theme_appearance(0x0f766e,0);dock_settings_mode("dark");
-        assert(lv_color_eq(lv_obj_get_style_bg_color(settings_screen,0),dock_color(0x0c1220)));
+        assert(lv_color_eq(lv_obj_get_style_bg_color(settings_screen,0),dock_color(0x151515)));
         lv_obj_send_event(theme_choices[1].button,LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"theme.set")&&!strcmp(event.text,"violet"));
         dock_theme_set(0x7c3aed);dock_settings_theme("violet");
@@ -224,7 +359,7 @@ int main(int argc,char **argv) {
         lv_obj_send_event(wifi_tab,LV_EVENT_CLICKED,NULL);
         dock_settings_network("0","Home","已保存",-45,1);
         dock_settings_network("","Cafe \" guest","WPA-PSK",-60,0);
-        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones",1,0);
+        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones","耳机",1,0,1);
         lv_obj_t *row=lv_obj_get_child(wifi_list,0);
         lv_obj_send_event(lv_obj_get_child(row,2),LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"wifi.connect")&&!strcmp(event.text,"0"));
@@ -240,7 +375,7 @@ int main(int argc,char **argv) {
         assert(!join_dialog);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"wifi.join"));
         assert(strstr(event.text,"hello123")&&strstr(event.text,"WPA-PSK"));
-        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones",1,0);
+        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones","耳机",1,0,1);
         row=lv_obj_get_child(bt_list,0);
         lv_obj_send_event(lv_obj_get_child(row,2),LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"bt.connect")&&!strcmp(event.text,"AA:BB:CC:DD:EE:FF"));

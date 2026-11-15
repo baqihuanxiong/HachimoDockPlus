@@ -57,6 +57,11 @@ func TestJoystickDeadzoneRepeatAndMapping(t *testing.T) {
 	check(0, -.8, 580*time.Millisecond, Up)
 	n = navigator{options: Options{SwapXY: true, InvertY: true}}
 	check(1, 0, time.Second, Up)
+	n = navigator{options: Options{InvertY: true}}
+	check(0, .8, 2*time.Second, Up)
+	check(0, -.8, 3*time.Second, Down)
+	check(.8, 0, 4*time.Second, Right)
+	check(-.8, 0, 5*time.Second, Left)
 	if normalize(0, 861) != -1 || normalize(1650, 861) != 1 || normalize(861, 861) != 0 {
 		t.Fatal("normalization")
 	}

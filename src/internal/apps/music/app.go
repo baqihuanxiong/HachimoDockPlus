@@ -521,11 +521,11 @@ func HardwareAction(key controls.Key) string {
 		return "track.previous"
 	case controls.Right:
 		return "track.next"
-	// On this baseboard physical up is positive Y under catalog calibration.
+	// Axis orientation is normalized by the shared controls configuration.
 	case controls.Up:
-		return "volume.down"
-	case controls.Down:
 		return "volume.up"
+	case controls.Down:
+		return "volume.down"
 	}
 	return ""
 }

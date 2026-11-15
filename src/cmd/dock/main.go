@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"hachimodockplus/internal/bootstrap"
 	"hachimodockplus/internal/config"
 	deviceclock "hachimodockplus/internal/platform/clock"
+	"hachimodockplus/internal/platform/system"
 	"hachimodockplus/internal/ui/lvgl"
 	"hachimodockplus/internal/ui/terminal"
 )
@@ -31,6 +33,7 @@ func run() error {
 	ui := flag.String("ui", "lvgl", "lvgl or terminal")
 	preview := flag.String("preview", "", "render LVGL into a PNG instead of opening devices")
 	page := flag.String("page", "catalog", "initial page: catalog or a registered application ID")
+	prepareSystem := flag.Bool("prepare-system", false, "prepare staged SMB configuration while the UI service is stopped")
 	ask := flag.String("ask", "", "one text request through embedded PicoClaw")
 	ttsText := flag.String("tts", "", "synthesize text to -pcm-output for service verification")
 	pcmOutput := flag.String("pcm-output", "", "new raw PCM output file, mono PCM16/24kHz")
@@ -38,6 +41,20 @@ func run() error {
 	syncTime := flag.Bool("sync-time", false, "synchronize the device clock with SNTP (root required)")
 	ntpServers := flag.String("ntp-servers", "ntp.aliyun.com:123,time.cloudflare.com:123,pool.ntp.org:123", "comma-separated SNTP servers")
 	flag.Parse()
+	if *prepareSystem {
+		cfg, err := config.Load(*path)
+		if err != nil {
+			return err
+		}
+		if err := bootstrap.PrepareAgentExtensions(cfg); err != nil {
+			return err
+		}
+		if err := system.PrepareConfiguration(*path); err != nil {
+			return err
+		}
+		fmt.Println("配置共享目录已准备")
+		return nil
+	}
 	if *syncTime {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
@@ -57,6 +74,14 @@ func run() error {
 	cfg, err := config.Load(*path)
 	if err != nil {
 		return err
+	}
+	if err := bootstrap.PrepareAgentExtensions(cfg); err != nil {
+		return err
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(cfg.SourcePath()), "system", "config-active")); err == nil {
+		if err := system.PrepareConfiguration(cfg.SourcePath()); err != nil {
+			return err
+		}
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -111,7 +136,7 @@ func run() error {
 		if *ask != "" {
 			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 			defer cancel()
-			reply, err := agent.Chat(ctx, *ask, "dock-cli-check")
+			reply, err := agent.Chat(ctx, *ask, "dock-cli-check", nil)
 			if err == nil {
 				fmt.Println(reply)
 			}

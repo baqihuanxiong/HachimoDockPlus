@@ -2,6 +2,7 @@
 # Run inside tools/Dockerfile's build image, from src/.
 set -eu
 cd "$(dirname "$0")/.."
+sh tools/prepare-lvgl.sh
 target="${1:-native}"
 case "$target" in
   native) cc=gcc; arch=amd64; cmake_system="";;

@@ -13,12 +13,20 @@ import (
 	"hachimodockplus/internal/core"
 	"hachimodockplus/internal/platform/audio"
 	"hachimodockplus/internal/platform/connectivity"
+	"hachimodockplus/internal/platform/system"
 	"hachimodockplus/internal/preferences"
 )
 
 const ID = "settings"
 
-var Manifest = core.Manifest{ID: ID, Title: "设置", Description: "网络、蓝牙、音频与外观", Icon: "\uf013", Capabilities: []core.Capability{core.Network}}
+var Manifest = core.Manifest{ID: ID, Title: "设置", Description: "网络、蓝牙、系统与外观", Icon: "\uf013", Capabilities: []core.Capability{core.Network}}
+
+type SystemBackend interface {
+	Read(context.Context) system.State
+	ConfigureSMB(context.Context, system.Credentials) error
+	SetSMB(context.Context, bool) error
+	Restart(context.Context) error
+}
 
 type Backend interface {
 	Read(context.Context) connectivity.State
@@ -36,12 +44,14 @@ type State struct {
 	Screensaver  string
 	Mode         string
 	Busy         bool
+	System       system.State
 }
 type App struct {
 	mu              sync.Mutex
 	worker          sync.Mutex
 	volume          *audio.Volume
 	backend         Backend
+	system          SystemBackend
 	preferences     *preferences.Store
 	state           State
 	status          string
@@ -57,6 +67,11 @@ func New(b Backend, prefs *preferences.Store, volumes ...*audio.Volume) *App {
 	if len(volumes) > 0 {
 		a.volume = volumes[0]
 	}
+	return a
+}
+func NewWithSystem(b Backend, prefs *preferences.Store, volume *audio.Volume, backend SystemBackend) *App {
+	a := New(b, prefs, volume)
+	a.system = backend
 	return a
 }
 func (a *App) Start(ctx context.Context) error {
@@ -126,12 +141,19 @@ func (a *App) refresh(ctx context.Context, epoch uint64, status string) {
 	read, cancel := context.WithTimeout(ctx, 12*time.Second)
 	st := a.backend.Read(read)
 	cancel()
+	sys := system.State{Username: "dockconfig", ShareName: system.ShareName, Error: "系统服务不可用"}
+	if a.system != nil {
+		read, cancel := context.WithTimeout(ctx, 5*time.Second)
+		sys = a.system.Read(read)
+		cancel()
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if ctx.Err() != nil || a.closed || epoch != a.epoch {
 		return
 	}
 	a.state.Connectivity = st
+	a.state.System = sys
 	// A periodic read must not clear a command queued while it was in progress.
 	if len(a.events) == 0 {
 		a.state.Busy = false
@@ -143,6 +165,52 @@ func (a *App) refresh(ctx context.Context, epoch uint64, status string) {
 }
 func (a *App) perform(ctx context.Context, e core.Event) error {
 	switch e.Action {
+	case "audio.output", "audio.bluetooth":
+		if a.volume == nil {
+			return errors.New("音频服务不可用")
+		}
+		if e.Action == "audio.output" {
+			if e.Text != "speaker" && e.Text != "spdif" {
+				return errors.New("无效的音频输出")
+			}
+			return a.volume.SetOutput(e.Text, "")
+		}
+		a.mu.Lock()
+		devices := append([]connectivity.Device(nil), a.state.Connectivity.Devices...)
+		a.mu.Unlock()
+		for _, d := range devices {
+			if strings.EqualFold(d.Address, e.Text) && d.Paired && d.Audio {
+				return a.volume.SetOutput("bluetooth", d.Address)
+			}
+		}
+		return errors.New("请先在蓝牙页配对耳机或音箱，再选择输出")
+	case "smb.account":
+		if a.system == nil {
+			return errors.New("系统服务不可用")
+		}
+		var c system.Credentials
+		if json.Unmarshal([]byte(e.Text), &c) != nil {
+			return errors.New("共享账号输入无效")
+		}
+		return a.system.ConfigureSMB(ctx, c)
+	case "smb.set":
+		if a.system == nil {
+			return errors.New("系统服务不可用")
+		}
+		if e.Text != "true" && e.Text != "false" {
+			return errors.New("共享开关值无效")
+		}
+		return a.system.SetSMB(ctx, e.Text == "true")
+	case "system.restart":
+		if a.system == nil {
+			return errors.New("系统服务不可用")
+		}
+		if a.volume != nil {
+			if err := a.volume.Flush(); err != nil {
+				return errors.New("音频设置尚未保存，请稍后重试")
+			}
+		}
+		return a.system.Restart(ctx)
 	case "refresh":
 		return nil
 	case "theme.set":
@@ -192,7 +260,7 @@ func (a *App) Handle(e core.Event) error {
 			a.volume.Adjust(-5)
 		}
 		return nil
-	case "screensaver.set", "mode.set", "theme.set", "refresh", "wifi.scan", "wifi.join", "wifi.connect", "wifi.disconnect", "wifi.forget", "bt.on", "bt.off", "bt.scan", "bt.pair", "bt.connect", "bt.disconnect", "bt.remove":
+	case "audio.output", "audio.bluetooth", "smb.account", "smb.set", "system.restart", "screensaver.set", "mode.set", "theme.set", "refresh", "wifi.scan", "wifi.join", "wifi.connect", "wifi.disconnect", "wifi.forget", "bt.on", "bt.off", "bt.scan", "bt.pair", "bt.connect", "bt.disconnect", "bt.remove":
 	default:
 		return core.ErrUnknownAction
 	}
@@ -217,6 +285,9 @@ func (a *App) Stop() {
 		a.cancel()
 		a.cancel = nil
 	}
+	if scanner, ok := a.backend.(interface{ StopDiscovery() }); ok {
+		scanner.StopDiscovery()
+	}
 	a.epoch++
 	a.state.Busy = false
 	a.revision++
@@ -227,6 +298,9 @@ func (a *App) Close() error {
 	a.closed = true
 	a.mu.Unlock()
 	a.wg.Wait()
+	if closer, ok := a.backend.(interface{ Close() error }); ok {
+		return closer.Close()
+	}
 	return nil
 }
 func (a *App) Snapshot() core.AppSnapshot {

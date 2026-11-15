@@ -93,8 +93,12 @@ func (a ALSA) Play(ctx context.Context, pcm io.Reader, rate int) error {
 		return err
 	}
 	defer release()
-	cmd := exec.CommandContext(ctx, "aplay", "-q", "-D", a.PlaybackDevice, "-t", "raw", "-f", "S16_LE", "-r", strconv.Itoa(rate), "-c", "1")
-	cmd.Stdin = pcm
+	device := a.PlaybackDevice
+	if a.Volume != nil {
+		device = a.Volume.PlaybackDevice(device)
+	}
+	cmd := exec.CommandContext(ctx, "aplay", "-q", "-D", device, "-t", "raw", "-f", "S16_LE", "-r", strconv.Itoa(rate), "-c", "1")
+	cmd.Stdin = outputPCM(pcm, a.Volume)
 	cmd.Stderr = io.Discard
 	if err := cmd.Run(); err != nil {
 		return errors.New("音频播放失败，请检查输出设备")

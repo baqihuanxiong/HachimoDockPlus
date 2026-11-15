@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -11,6 +12,51 @@ type testApp struct {
 	starts, stops, closes int
 	events                []Event
 	fail                  bool
+}
+
+func TestRegistryOrderingKeepsUnlistedAppsAndFactoryIDs(t *testing.T) {
+	created := 0
+	apps := map[string]*testApp{"one": {}, "two": {}, "three": {}}
+	var entries []Registration
+	for _, id := range []string{"one", "two", "three"} {
+		entries = append(entries, Registration{Manifest: Manifest{ID: id, Title: id}, New: func() (Application, error) {
+			created++
+			return apps[id], nil
+		}})
+	}
+	r, err := NewRegistry(entries...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ order, want []string }{
+		{nil, []string{"one", "two", "three"}},
+		{[]string{}, []string{"one", "two", "three"}},
+		{[]string{"three"}, []string{"three", "one", "two"}},
+		{[]string{"two", "three", "one"}, []string{"two", "three", "one"}},
+	} {
+		ordered, err := r.Ordered(tc.order)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, m := range ordered.Manifests() {
+			got = append(got, m.ID)
+		}
+		if !reflect.DeepEqual(got, tc.want) || created != 0 || r.Manifests()[0].ID != "one" {
+			t.Fatal("ordering changed factories or original registry", got)
+		}
+	}
+	for _, order := range [][]string{{"missing"}, {"one", "one"}, {""}} {
+		if _, err := r.Ordered(order); err == nil {
+			t.Fatal("invalid order accepted", order)
+		}
+	}
+	ordered, _ := r.Ordered([]string{"three", "two", "one"})
+	h := NewHost(context.Background(), ordered)
+	defer h.Close()
+	if err := h.Open("three"); err != nil || apps["three"].starts != 1 || apps["one"].starts != 0 {
+		t.Fatal("opening a reordered ID used the wrong factory", err)
+	}
 }
 
 func (a *testApp) Start(ctx context.Context) error {

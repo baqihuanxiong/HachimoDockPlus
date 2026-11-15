@@ -1,7 +1,8 @@
 # CosyVoice3 语音合成接口与客户端示例
 
-本文对应当前部署的 `Fun-CosyVoice3-0.5B-2512`，根据 [deployment.json](deployment.json)、运行容器的 FastAPI 路由及 [verify.py](verify.py) 整理。2026-10-17 核对 `/health` 返回 200；部署和既有验收边界见 [AGENTS.md](AGENTS.md)。
+本文对应当前部署的 `Fun-CosyVoice3-0.5B-2512`，根据 `deployment.json`、运行容器的 FastAPI 路由及 `verify.py` 整理。2026-10-17 核对 `/health` 返回 200；部署和既有验收边界见 `AGENTS.md`。
 
+文中 `deployment.json`、验证脚本和 `AGENTS.md` 属于语音服务部署仓库，本项目仅保留接口参考。
 ## 1. 服务入口与鉴权
 
 | 项目 | 当前配置 |
@@ -174,7 +175,7 @@ python3 tts_client.py --mode instruct2 --non-stream \
   --text '你好，祝你有愉快的一天。' --output gentle.wav
 ```
 
-只有使用官方示例参考录音时，上述参考转写才适用。主节点可按 [AGENTS.md](AGENTS.md) 从容器提取 `asset/zero_shot_prompt.wav`；自己的录音必须替换转写。
+只有使用官方示例参考录音时，上述参考转写才适用。主节点可按 `AGENTS.md` 从容器提取 `asset/zero_shot_prompt.wav`；自己的录音必须替换转写。
 
 ## 5. curl 示例与既有验收程序
 
@@ -198,4 +199,4 @@ ffplay -nodisp -autoexit -f s16le -ar 24000 -ac 1 output.pcm
 
 curl 失败时 `output.pcm` 可能是错误体或残缺音频，不应播放。健康检查无需密钥：`curl --fail https://cosyvoice.zi-cloud.net/health`。
 
-需要重跑已有功能验收时，可使用 [verify_auth.py](verify_auth.py) 与 [verify.py](verify.py)，参数及范围见 [AGENTS.md](AGENTS.md)。既有验收覆盖三种主要模式、两种鉴权、流式与非流式；未提供试听/ASR 内容评分、并发容量或长文本性能保证。
+需要重跑已有功能验收时，可使用 `verify_auth.py` 与 `verify.py`，参数及范围见 `AGENTS.md`。既有验收覆盖三种主要模式、两种鉴权、流式与非流式；未提供试听/ASR 内容评分、并发容量或长文本性能保证。

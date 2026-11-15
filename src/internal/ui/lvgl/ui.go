@@ -138,16 +138,27 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		case <-ctx.Done():
 			return nil
 		case e := <-hardware:
-			if !e.Pressed {
-				continue
-			}
 			if !sleeping && current != nil {
-				if handler, ok := current.(interface{ Hardware(controls.Key) string }); ok {
-					if action := handler.Hardware(e.Key); action != "" {
+				if handler, ok := current.(interface {
+					HardwareEvent(controls.Event) string
+				}); ok {
+					// Pages that take over hardware input receive press and
+					// release events; returning "" falls through to defaults.
+					if action := handler.HardwareEvent(e); action != "" {
 						_ = h.Dispatch(core.Event{AppID: current.ID(), Action: action})
 						continue
 					}
+				} else if e.Pressed {
+					if handler, ok := current.(interface{ Hardware(controls.Key) string }); ok {
+						if action := handler.Hardware(e.Key); action != "" {
+							_ = h.Dispatch(core.Event{AppID: current.ID(), Action: action})
+							continue
+						}
+					}
 				}
+			}
+			if !e.Pressed {
+				continue
 			}
 			switch e.Key {
 			case controls.SW2:

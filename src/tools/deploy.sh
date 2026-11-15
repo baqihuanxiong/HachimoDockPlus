@@ -19,6 +19,7 @@ package="$deploy_dir/package"
 archive="$deploy_dir/package.tgz"
 mkdir -p "$package/assets/app-icons" "$package/secrets"
 cp build/arm/dock "$package/dock"
+cp tools/S45hachimodock-audio "$package/"
 cp .local/config.json "$package/config.json"
 cp .local/secrets/*.key "$package/secrets/"
 cp -r .local/assets/. "$package/assets/"
@@ -53,7 +54,12 @@ chmod 700 "$stage" "$base"
 tar -xzf "/tmp/hachimodock-package-$version.tgz" -C "$stage"
 # Refuse before stopping the live UI if NAND cannot hold another release.
 available=$(df -Pk "$base" | awk 'NR==2 {print $4}')
-required=$(( $(wc -c < "$stage/dock") / 1024 + $(du -sk "$stage/assets" | awk '{print $1}') + 8192 ))
+# Existing user assets are retained by cp -n, so reserve space only for new files.
+asset_bytes=$(find "$stage/assets" -type f | while IFS= read -r asset; do
+  relative=${asset#"$stage/assets/"}
+  if [ ! -e "$base/assets/$relative" ]; then wc -c < "$asset"; fi
+done | awk '{total += $1} END {print total+0}')
+required=$(( ($(wc -c < "$stage/dock") + asset_bytes + 1023) / 1024 + 8192 ))
 if [ "$available" -lt "$required" ]; then
   echo "Not enough space for release: remove unused old releases first (need ${required} KiB, available ${available} KiB)" >&2
   exit 1
@@ -67,7 +73,9 @@ cp "$stage/dock" "$base/releases/$version/dock.new"
 chmod 755 "$base/releases/$version/dock.new"
 mv -f "$base/releases/$version/dock.new" "$base/releases/$version/dock"
 chmod 755 "$base/releases/$version/dock"
-cp -r "$stage/assets" "$base/"
+mkdir -p "$base/assets"
+# Assets are user configuration: retain uploaded voices/fonts on code deployment.
+cp -rn "$stage/assets/." "$base/assets/"
 # Preserve board-local endpoints and credentials on subsequent code deployments.
 if [ ! -e "$base/config.json" ]; then
   cp "$stage/config.json" "$base/config.json"
@@ -75,6 +83,8 @@ if [ ! -e "$base/config.json" ]; then
   chmod 600 "$base/config.json" "$base"/secrets/*.key
   chmod 700 "$base/secrets"
 fi
+cp "$stage/S45hachimodock-audio" /etc/init.d/S45hachimodock-audio
+chmod 755 /etc/init.d/S45hachimodock-audio
 ln -sfn "releases/$version" "$base/current"
 rm -rf "$stage" "/tmp/hachimodock-package-$version.tgz"
 if [ "$restart" = 1 ]; then "$service" start; restart=0; fi

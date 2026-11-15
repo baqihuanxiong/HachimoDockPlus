@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"hachimodockplus/internal/platform/controls"
@@ -19,12 +20,20 @@ type Service struct {
 	URL     string `json:"url"`
 	KeyFile string `json:"key_file"`
 }
+
+var bluetoothAddress = regexp.MustCompile(`(?i)^[0-9a-f]{2}(:[0-9a-f]{2}){5}$`)
+
 type Audio struct {
-	CaptureDevice  string `json:"capture_device"`
-	PlaybackDevice string `json:"playback_device"`
-	MixerCard      string `json:"mixer_card"`
+	CaptureDevice   string `json:"capture_device"`
+	PlaybackDevice  string `json:"playback_device"`
+	MixerCard       string `json:"mixer_card"`
+	Volume          int    `json:"volume"`
+	Output          string `json:"output"`
+	SPDIFDevice     string `json:"spdif_device"`
+	BluetoothDevice string `json:"bluetooth_device"`
 }
 type UI struct {
+	AppOrder    []string         `json:"app_order,omitempty"`
 	Controls    controls.Options `json:"controls"`
 	Timezone    string           `json:"timezone"`
 	Framebuffer string           `json:"framebuffer"`
@@ -32,11 +41,13 @@ type UI struct {
 	Font        string           `json:"font"`
 }
 type Config struct {
-	DataDir string                     `json:"data_dir"`
-	Audio   Audio                      `json:"audio"`
-	UI      UI                         `json:"ui"`
-	Apps    map[string]json.RawMessage `json:"apps"`
-	base    string
+	DataDir   string                     `json:"data_dir"`
+	Audio     Audio                      `json:"audio"`
+	UI        UI                         `json:"ui"`
+	Apps      map[string]json.RawMessage `json:"apps"`
+	base      string
+	source    string
+	volumeSet bool
 }
 
 func decode(data []byte, out any) error {
@@ -51,6 +62,40 @@ func decode(data []byte, out any) error {
 	return nil
 }
 func Load(path string) (Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Config{}, fmt.Errorf("读取配置: %w", err)
+	}
+	c, err := Parse(data, filepath.Dir(path))
+	if err != nil {
+		return c, err
+	}
+	c.source, err = filepath.Abs(path)
+	if err != nil {
+		return c, err
+	}
+	if !c.volumeSet {
+		legacy, e := os.ReadFile(filepath.Join(c.DataDir, "volume.json"))
+		if e == nil {
+			var saved struct {
+				Volume *int `json:"volume"`
+			}
+			if json.Unmarshal(legacy, &saved) != nil || saved.Volume == nil || *saved.Volume < 0 || *saved.Volume > 100 {
+				return c, errors.New("旧音量偏好格式错误")
+			}
+			c.Audio.Volume = *saved.Volume
+		} else if !errors.Is(e, os.ErrNotExist) {
+			return c, e
+		}
+	}
+	return c, nil
+}
+
+// SourcePath identifies the stable configuration entry used by the supervisor.
+func (c Config) SourcePath() string { return c.source }
+
+// Parse validates a candidate while retaining the installed config's path base.
+func Parse(data []byte, baseDir string) (Config, error) {
 	var c Config
 	// Read legacy fields only to translate them to the app namespace in memory.
 	var wire struct {
@@ -62,18 +107,20 @@ func Load(path string) (Config, error) {
 		ASR     json.RawMessage            `json:"asr"`
 		TTS     json.RawMessage            `json:"tts"`
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return c, fmt.Errorf("读取配置: %w", err)
-	}
-	if err = decode(data, &wire); err != nil {
+	wire.Audio.Volume = 60
+	if err := decode(data, &wire); err != nil {
 		return c, fmt.Errorf("配置格式错误: %w", err)
 	}
-	base, err := filepath.Abs(filepath.Dir(path))
+	base, err := filepath.Abs(baseDir)
 	if err != nil {
 		return c, err
 	}
-	c = Config{DataDir: wire.DataDir, Audio: wire.Audio, UI: wire.UI, Apps: wire.Apps, base: base}
+	var presence struct {
+		Audio map[string]json.RawMessage `json:"audio"`
+	}
+	_ = json.Unmarshal(data, &presence)
+	_, volumeSet := presence.Audio["volume"]
+	c = Config{volumeSet: volumeSet, DataDir: wire.DataDir, Audio: wire.Audio, UI: wire.UI, Apps: wire.Apps, base: base}
 	if c.Apps == nil {
 		c.Apps = make(map[string]json.RawMessage)
 	}
@@ -102,6 +149,27 @@ func Load(path string) (Config, error) {
 	}
 	if c.Audio.PlaybackDevice == "" {
 		c.Audio.PlaybackDevice = "default"
+	}
+	if c.Audio.Volume < 0 || c.Audio.Volume > 100 {
+		return c, errors.New("audio.volume 必须为 0～100")
+	}
+	if c.Audio.Output == "" {
+		c.Audio.Output = "speaker"
+	}
+	switch c.Audio.Output {
+	case "speaker", "spdif", "bluetooth":
+	default:
+		return c, errors.New("audio.output 必须为 speaker、spdif 或 bluetooth")
+	}
+	if c.Audio.SPDIFDevice == "" {
+		c.Audio.SPDIFDevice = "iec958:CARD=Device,DEV=0"
+	}
+	if c.Audio.BluetoothDevice != "" && !bluetoothAddress.MatchString(c.Audio.BluetoothDevice) {
+		return c, errors.New("audio.bluetooth_device 必须为蓝牙 MAC 地址")
+	}
+	c.Audio.BluetoothDevice = strings.ToUpper(c.Audio.BluetoothDevice)
+	if c.Audio.Output == "bluetooth" && c.Audio.BluetoothDevice == "" {
+		return c, errors.New("蓝牙输出需要 audio.bluetooth_device")
 	}
 	if c.UI.Framebuffer == "" {
 		c.UI.Framebuffer = "/dev/fb0"

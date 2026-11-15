@@ -35,7 +35,7 @@ LRC 歌词支持一行多个时间戳、毫秒精度、offset 标签及按时间
 
 ## 全局音量和凭据
 
-- `data_dir/volume.json`：音乐与 PicoClaw 共用的音量，原子保存，重启恢复。
+- `config.json` 的 `audio.volume`、`audio.output`、`audio.bluetooth_device`：音乐与 PicoClaw 共用的音频偏好，原子保存，重启恢复。
 - `data_dir/apps/music/session.json`：登录 Cookie，权限 `600`，不进入日志或状态快照；退出账号删除。
 - 0% 关闭播放开关静音；默认 60% 对应 CM108B `17,17`（−20 dB），100% 限制为已试听的 `29,29`（−8 dB）。
 

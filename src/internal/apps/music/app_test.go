@@ -202,7 +202,7 @@ func TestLateCancelledPlaylistCannotMutateState(t *testing.T) {
 	}
 }
 func TestHardwareMapping(t *testing.T) {
-	for key, want := range map[controls.Key]string{controls.SW2: "play.toggle", controls.Left: "track.previous", controls.Right: "track.next", controls.Up: "volume.down", controls.Down: "volume.up", controls.SW3: "", controls.JoystickPress: ""} {
+	for key, want := range map[controls.Key]string{controls.SW2: "play.toggle", controls.Left: "track.previous", controls.Right: "track.next", controls.Up: "volume.up", controls.Down: "volume.down", controls.SW3: "", controls.JoystickPress: ""} {
 		if HardwareAction(key) != want {
 			t.Fatal(key)
 		}

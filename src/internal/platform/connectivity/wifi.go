@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -25,6 +26,9 @@ type Network struct {
 type Device struct {
 	Address, Name              string
 	Paired, Connected, Trusted bool
+	Kind                       int
+	Audio                      bool
+	Available                  bool
 }
 type State struct {
 	WiFiStatus, SSID, IP, WiFiError string
@@ -34,7 +38,14 @@ type State struct {
 	Devices                         []Device
 }
 type Join struct{ SSID, Password, Security string }
-type Service struct{ Socket string }
+type Service struct {
+	Socket        string
+	btMu          sync.Mutex
+	btDevices     map[string]Device
+	btDiscoveryMu sync.Mutex
+	btDiscovery   *bluetoothDiscovery
+	btClosed      bool
+}
 
 func New() *Service { return &Service{Socket: "/var/run/wpa_supplicant/wlan0"} }
 

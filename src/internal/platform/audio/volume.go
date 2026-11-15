@@ -16,9 +16,11 @@ import (
 const MaxPCM = 29
 
 type VolumeState struct {
-	Volume   int
-	Error    string
-	Revision uint64
+	Volume          int
+	Output          string
+	BluetoothDevice string
+	Error           string
+	Revision        uint64
 }
 type Mixer interface {
 	Apply(context.Context, int) error
@@ -45,16 +47,19 @@ func (h HardwareMixer) Apply(ctx context.Context, volume int) error {
 }
 
 type Volume struct {
-	dirty  bool
-	close  sync.Once
-	mu     sync.Mutex
-	apply  sync.Mutex
-	path   string
-	mixer  Mixer
-	state  VolumeState
-	wake   chan struct{}
-	cancel context.CancelFunc
-	done   chan struct{}
+	dirty     bool
+	close     sync.Once
+	mu        sync.Mutex
+	apply     sync.Mutex
+	persistMu sync.Mutex
+	path      string
+	mixer     Mixer
+	state     VolumeState
+	devices   OutputDevices
+	persist   func(VolumeState) error
+	wake      chan struct{}
+	cancel    context.CancelFunc
+	done      chan struct{}
 }
 
 func NewVolume(path string, mixer Mixer) (*Volume, error) {
@@ -114,7 +119,10 @@ func (v *Volume) Apply(ctx context.Context) error {
 	v.apply.Lock()
 	defer v.apply.Unlock()
 	s := v.Snapshot()
-	err := v.mixer.Apply(ctx, s.Volume)
+	var err error
+	if s.Output == "" || s.Output == "speaker" {
+		err = v.mixer.Apply(ctx, s.Volume)
+	}
 	v.mu.Lock()
 	if s.Revision == v.state.Revision {
 		v.state.Error = ""
@@ -138,7 +146,7 @@ func (v *Volume) run(ctx context.Context) {
 			cancel()
 			// Keep the requested preference even if the USB sound card is unplugged.
 			if saveErr := v.save(); saveErr != nil {
-				err = errors.New("音量已调整，但保存失败")
+				err = errors.New("音频设置已调整，但 config.json 保存失败")
 			}
 			if err != nil {
 				v.mu.Lock()
@@ -149,7 +157,32 @@ func (v *Volume) run(ctx context.Context) {
 		}
 	}
 }
+
+// Flush joins persistence before applying a staged configuration and restarting.
+func (v *Volume) Flush() error { return v.save() }
 func (v *Volume) save() error {
+	v.persistMu.Lock()
+	defer v.persistMu.Unlock()
+	v.mu.Lock()
+	s, dirty := v.state, v.dirty
+	v.mu.Unlock()
+	if !dirty {
+		return nil
+	}
+	if err := v.saveState(s); err != nil {
+		return err
+	}
+	v.mu.Lock()
+	if v.state.Volume == s.Volume && v.state.Output == s.Output && v.state.BluetoothDevice == s.BluetoothDevice {
+		v.dirty = false
+	}
+	v.mu.Unlock()
+	return nil
+}
+func (v *Volume) saveState(s VolumeState) error {
+	if v.persist != nil {
+		return v.persist(s)
+	}
 	if v.path == "" {
 		return nil
 	}
@@ -163,7 +196,7 @@ func (v *Volume) save() error {
 	defer os.Remove(f.Name())
 	err = json.NewEncoder(f).Encode(struct {
 		Volume int `json:"volume"`
-	}{v.Snapshot().Volume})
+	}{s.Volume})
 	if err == nil {
 		err = f.Sync()
 	}
@@ -192,6 +225,13 @@ func prepareOutput(ctx context.Context, volume *Volume) (func(), error) {
 			release()
 			return nil, err
 		}
+	}
+	if volume != nil && volume.configured() {
+		if err := volume.route(ctx); err != nil {
+			release()
+			return nil, err
+		}
+		return func() { volume.releaseRoute(); playbackLock.Unlock() }, nil
 	}
 	if _, err := exec.LookPath("hachimodock-speaker-amp"); err == nil {
 		if err = exec.CommandContext(ctx, "hachimodock-speaker-amp", "on").Run(); err != nil {

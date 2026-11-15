@@ -42,3 +42,27 @@ func (r *Registry) Manifests() []Manifest {
 	}
 	return result
 }
+
+// Ordered returns a new registry without creating any application instances.
+// Unlisted applications follow the requested IDs in their registration order.
+func (r *Registry) Ordered(order []string) (*Registry, error) {
+	entries := make([]Registration, 0, len(r.entries))
+	seen := make(map[string]bool, len(order))
+	for _, id := range order {
+		index, ok := r.byID[id]
+		if !ok {
+			return nil, fmt.Errorf("ui.app_order 中的组件未注册: %s", id)
+		}
+		if seen[id] {
+			return nil, fmt.Errorf("ui.app_order 中的组件重复: %s", id)
+		}
+		seen[id] = true
+		entries = append(entries, r.entries[index])
+	}
+	for _, entry := range r.entries {
+		if !seen[entry.Manifest.ID] {
+			entries = append(entries, entry)
+		}
+	}
+	return NewRegistry(entries...)
+}

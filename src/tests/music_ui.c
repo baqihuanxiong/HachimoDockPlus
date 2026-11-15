@@ -32,5 +32,5 @@ int main(int argc,char **argv){
   for(int i=0;i<20;i++)dock_music_track(i,"示例歌曲标题","示例歌手 / 专辑",i==0);dock_music_tracks_page(0,6,120);screenshot("build/native/music-tracks.ppm");lv_obj_send_event(lv_obj_get_child(music_tracks,3),LV_EVENT_CLICKED,NULL);assert(dock_poll(&event)==1&&!strcmp(event.action,"track.play"));
   dock_music_cover(NULL,0,0);assert(!music_cover_pixels);assert(!lv_obj_has_flag(music_fallback,LV_OBJ_FLAG_HIDDEN));dock_show_catalog();dock_music_unmount();
  }
- assert(dock_settings_mount()==0);dock_settings_volume(60,"");lv_obj_send_event(audio_tab,LV_EVENT_CLICKED,NULL);screenshot("build/native/audio-settings.ppm");dock_show_catalog();dock_settings_unmount();dock_close();puts("Music cover, lyrics, seek, volume, playlists and login UI passed");return 0;
+ assert(dock_settings_mount()==0);dock_settings_volume(60,"");lv_obj_send_event(system_tab,LV_EVENT_CLICKED,NULL);screenshot("build/native/system-settings.ppm");dock_show_catalog();dock_settings_unmount();dock_close();puts("Music cover, lyrics, seek, volume, playlists and login UI passed");return 0;
 }

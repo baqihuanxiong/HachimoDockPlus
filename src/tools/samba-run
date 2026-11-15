@@ -1,0 +1,35 @@
+#!/bin/sh
+# Keep Samba's sizeable read-only runtime in RAM; only its compressed package is on NAND.
+set -eu
+umask 077
+base=/opt/hachimodock
+runtime=/tmp/hachimodock-samba-runtime
+command=${0##*/}
+case "$command" in smbd|smbpasswd|smbcontrol|testparm) ;; *) exit 2;; esac
+expected=$(cat "$base/samba/bundle-id")
+if [ ! -f "$runtime/.bundle-id" ] || [ "$(cat "$runtime/.bundle-id")" != "$expected" ]; then
+  lock=/tmp/hachimodock-samba-unpack.lock
+  tries=0
+  while ! mkdir "$lock" 2>/dev/null; do
+    if [ -f "$lock/pid" ]; then
+      read -r owner < "$lock/pid"
+      case "$owner" in ''|*[!0-9]*) exit 1;; esac
+      if ! kill -0 "$owner" 2>/dev/null; then rm "$lock/pid"; rmdir "$lock"; continue; fi
+    fi
+    tries=$((tries+1)); [ "$tries" -lt 100 ] || exit 1
+    sleep 0.1
+  done
+  echo $$ > "$lock/pid"
+  stage="$(mktemp -d /tmp/hachimodock-samba-XXXXXX)"
+  cleanup() { rm -rf "$stage"; rm "$lock/pid"; rmdir "$lock"; }
+  trap cleanup EXIT
+  trap 'exit 1' HUP INT TERM
+  tar -xzf "$base/samba/runtime.tgz" -C "$stage"
+  echo "$expected" > "$stage/.bundle-id"
+  rm -rf "$runtime"
+  mv "$stage" "$runtime"
+  trap - EXIT HUP INT TERM
+  rm "$lock/pid"; rmdir "$lock"
+fi
+export LD_LIBRARY_PATH="$runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$runtime/bin/$command" "$@"

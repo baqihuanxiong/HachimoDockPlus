@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"hachimodockplus/internal/config"
@@ -41,5 +42,41 @@ func TestCatalogDoesNotInitializePicoClaw(t *testing.T) {
 	}
 	if desktop.Host.Snapshot().Active != "" {
 		t.Fatal("failed app replaced catalog")
+	}
+}
+
+func TestConfiguredCatalogOrderUsesRegisteredIDsWithoutServices(t *testing.T) {
+	for _, tc := range []struct {
+		order []string
+		want  []string
+	}{
+		{nil, []string{"picoclaw", "settings", "music"}},
+		{[]string{"music"}, []string{"music", "picoclaw", "settings"}},
+		{[]string{"settings", "music", "picoclaw"}, []string{"settings", "music", "picoclaw"}},
+		{[]string{"not-installed"}, nil},
+		{[]string{"music", "music"}, nil},
+	} {
+		cfg, err := config.Parse([]byte(`{"data_dir":"data"}`), t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.UI.AppOrder = tc.order
+		r, err := applicationRegistry(cfg, nil, nil)
+		if tc.want == nil {
+			if err == nil {
+				t.Fatal("invalid configured order accepted", tc.order)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, m := range r.Manifests() {
+			got = append(got, m.ID)
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Fatal(got, tc.want)
+		}
 	}
 }

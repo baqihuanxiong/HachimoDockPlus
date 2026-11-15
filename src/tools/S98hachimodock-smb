@@ -1,0 +1,42 @@
+#!/bin/sh
+# SMB is independent of the Go UI, including when a candidate config is invalid.
+set -eu
+umask 077
+base=/opt/hachimodock
+private="$base/system/smb"
+pidfile=/tmp/hachimodock-smb/smbd.pid
+running() {
+  [ -r "$pidfile" ] || return 1
+  read -r pid < "$pidfile"
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null &&
+    readlink "/proc/$pid/exe" | grep -q '^/tmp/hachimodock-samba-runtime/bin/smbd$'
+}
+case "${1:-}" in
+  start)
+    if running; then exit 0; fi
+    [ -f "$private/enabled" ] || exit 0
+    test -r "$private/smb.conf"
+    test -r "$private/smbpasswd"
+    mkdir -p /tmp/hachimodock-smb "$private/state"
+    chmod 700 /tmp/hachimodock-smb "$private" "$private/state"
+    # Keep Samba's shutdown signals in its own process group, away from the Go
+    # supervisor (especially when both services are started by BusyBox rcS).
+    "$base/samba/smbd" -D -s "$private/smb.conf"
+    tries=0
+    until running && "$base/samba/smbcontrol" -s "$private/smb.conf" "$pid" ping >/dev/null 2>&1; do
+      tries=$((tries+1)); [ "$tries" -lt 30 ] || exit 1; sleep 0.1
+    done
+    ;;
+  stop)
+    if running; then
+      "$base/samba/smbcontrol" -s "$private/smb.conf" smbd shutdown >/dev/null 2>&1 || kill "$pid"
+      tries=0
+      while running; do tries=$((tries+1)); [ "$tries" -lt 30 ] || exit 1; sleep 0.1; done
+    fi
+    [ ! -f "$pidfile" ] || rm "$pidfile"
+    ;;
+  restart) "$0" stop; "$0" start;;
+  status) if running; then echo 'Configuration SMB running'; else exit 1; fi;;
+  *) echo "Usage: $0 start|stop|restart|status" >&2; exit 2;;
+esac

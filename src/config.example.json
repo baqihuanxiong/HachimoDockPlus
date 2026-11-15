@@ -3,15 +3,20 @@
   "audio": {
     "capture_device": "default",
     "playback_device": "default",
-    "mixer_card": "Device"
+    "mixer_card": "Device",
+    "volume": 60,
+    "output": "speaker",
+    "spdif_device": "iec958:CARD=Device,DEV=0",
+    "bluetooth_device": ""
   },
   "ui": {
+    "app_order": ["picoclaw", "settings", "music"],
     "timezone": "Asia/Shanghai",
     "controls": {
       "disabled": false,
       "swap_xy": false,
       "invert_x": false,
-      "invert_y": false
+      "invert_y": true
     },
     "framebuffer": "/dev/fb0",
     "input": "auto",
@@ -19,6 +24,7 @@
   },
   "apps": {
     "picoclaw": {
+      "extensions_dir": "agent",
       "llm": {
         "url": "https://your-model-service.example/v1",
         "model": "your-model",

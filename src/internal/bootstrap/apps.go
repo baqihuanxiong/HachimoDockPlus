@@ -31,6 +31,9 @@ type Desktop struct {
 }
 
 func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
+	if err := cfg.InitializeAudio(); err != nil {
+		return nil, err
+	}
 	prefs, err := preferences.Load(filepath.Join(cfg.DataDir, "preferences.json"))
 	if err != nil {
 		return nil, err
@@ -39,30 +42,12 @@ func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
 	if err != nil {
 		return nil, err
 	}
-	volume, err := audio.NewVolume(filepath.Join(cfg.DataDir, "volume.json"), audio.HardwareMixer{Card: cfg.Audio.MixerCard})
+	audioConfig := cfg
+	volume, err := audio.NewConfiguredVolume(audio.VolumeState{Volume: cfg.Audio.Volume, Output: cfg.Audio.Output, BluetoothDevice: cfg.Audio.BluetoothDevice}, audio.OutputDevices{Speaker: cfg.Audio.PlaybackDevice, SPDIF: cfg.Audio.SPDIFDevice}, audio.HardwareMixer{Card: cfg.Audio.MixerCard}, func(s audio.VolumeState) error { return audioConfig.SaveAudio(s.Volume, s.Output, s.BluetoothDevice) })
 	if err != nil {
 		return nil, err
 	}
-	registry, err := core.NewRegistry(core.Registration{
-		Manifest: app.Manifest,
-		New: func() (core.Application, error) {
-			services, err := NewPicoClawServices(cfg)
-			if err != nil {
-				return nil, err
-			}
-			services.Audio.Volume = volume
-			return app.New(services.Agent, services.ASR, services.TTS, services.Audio, services.Close), nil
-		},
-	}, core.Registration{
-		Manifest: settings.Manifest,
-		New:      func() (core.Application, error) { return settings.New(connectivity.New(), prefs, volume), nil },
-	}, core.Registration{Manifest: music.Manifest, New: func() (core.Application, error) {
-		client, err := netease.New(filepath.Join(cfg.AppDataDir(music.ID), "session.json"))
-		if err != nil {
-			return nil, err
-		}
-		return music.New(client, &audio.StreamPlayer{Device: cfg.Audio.PlaybackDevice, Volume: volume}, volume), nil
-	}})
+	registry, err := applicationRegistry(cfg, prefs, volume)
 	if err != nil {
 		volume.Close()
 		return nil, err
@@ -85,4 +70,34 @@ func (d *Desktop) Close() error {
 	err := d.Host.Close()
 	d.Audio.Close()
 	return err
+}
+
+// applicationRegistry only assembles factories; validation can pass nil services.
+func applicationRegistry(cfg config.Config, prefs *preferences.Store, volume *audio.Volume) (*core.Registry, error) {
+	registry, err := core.NewRegistry(core.Registration{
+		Manifest: app.Manifest,
+		New: func() (core.Application, error) {
+			services, err := NewPicoClawServices(cfg)
+			if err != nil {
+				return nil, err
+			}
+			services.Audio.Volume = volume
+			return app.New(services.Agent, services.ASR, services.TTS, services.Audio, services.Close), nil
+		},
+	}, core.Registration{
+		Manifest: settings.Manifest,
+		New: func() (core.Application, error) {
+			return settings.NewWithSystem(connectivity.New(), prefs, volume, systemServices(cfg)), nil
+		},
+	}, core.Registration{Manifest: music.Manifest, New: func() (core.Application, error) {
+		client, err := netease.New(filepath.Join(cfg.AppDataDir(music.ID), "session.json"))
+		if err != nil {
+			return nil, err
+		}
+		return music.New(client, &audio.StreamPlayer{Device: cfg.Audio.PlaybackDevice, Volume: volume}, volume), nil
+	}})
+	if err != nil {
+		return nil, err
+	}
+	return registry.Ordered(cfg.UI.AppOrder)
 }

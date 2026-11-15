@@ -1,7 +1,8 @@
 # Fun-ASR-Nano 实时语音识别接口与客户端示例
 
-本文对应当前部署的 `Fun-ASR-Nano-2512`，根据 [deployment.json](deployment.json)、[serve_ws.py](serve_ws.py)、运行容器内的 `funasr.bin.realtime_ws` 与 [verify.py](verify.py) 整理。2026-10-17 核对 `/health` 返回 200；部署和既有验收边界见 [AGENTS.md](AGENTS.md)。
+本文对应当前部署的 `Fun-ASR-Nano-2512`，根据 `deployment.json`、`serve_ws.py`、运行容器内的 `funasr.bin.realtime_ws` 与 `verify.py` 整理。2026-10-17 核对 `/health` 返回 200；部署和既有验收边界见 `AGENTS.md`。
 
+文中 `deployment.json`、验证脚本和 `AGENTS.md` 属于语音服务部署仓库，本项目仅保留接口参考。
 ## 1. 服务入口与鉴权
 
 | 项目 | 当前配置 |

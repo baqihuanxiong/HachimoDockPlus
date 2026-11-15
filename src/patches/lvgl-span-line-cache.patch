@@ -1,0 +1,148 @@
+diff --git a/src/widgets/span/lv_span.c b/src/widgets/span/lv_span.c
+index 9583ca6..67f69cd 100644
+--- a/src/widgets/span/lv_span.c
++++ b/src/widgets/span/lv_span.c
+@@ -68,6 +68,7 @@ static uint32_t lv_get_snippet_count(void);
+ static void lv_snippet_push(lv_snippet_t * item);
+ static lv_snippet_t * lv_get_snippet(uint32_t index);
+ static int32_t convert_indent_pct(lv_obj_t * spans, int32_t width);
++static void cache_line(lv_spangroup_t * spans, lv_span_t * span, uint32_t offset, int32_t y, const lv_snippet_t * snippet);
+ 
+ static lv_span_coords_t make_span_coords(const lv_span_t * prev_span, const lv_span_t * curr_span, int32_t width,
+                                          lv_area_t padding, int32_t indent);
+@@ -669,6 +670,7 @@ void lv_spangroup_refresh(lv_obj_t * obj)
+ {
+     lv_spangroup_t * spans = (lv_spangroup_t *)obj;
+     spans->refresh = 1;
++    spans->line_count = 0;
+     lv_obj_invalidate(obj);
+     lv_obj_refresh_self_size(obj);
+ }
+@@ -687,6 +689,10 @@ static void lv_spangroup_constructor(const lv_obj_class_t * class_p, lv_obj_t *
+     spans->overflow = LV_SPAN_OVERFLOW_CLIP;
+     spans->cache_w = 0;
+     spans->cache_h = 0;
++    spans->line_cache = NULL;
++    spans->line_count = 0;
++    spans->line_capacity = 0;
++    spans->line_width = 0;
+     spans->refresh = 1;
+ }
+ 
+@@ -694,6 +700,7 @@ static void lv_spangroup_destructor(const lv_obj_class_t * class_p, lv_obj_t * o
+ {
+     LV_UNUSED(class_p);
+     lv_spangroup_t * spans = (lv_spangroup_t *)obj;
++    lv_free(spans->line_cache);
+     lv_span_t * cur_span = lv_ll_get_head(&spans->child_ll);
+     while(cur_span) {
+         lv_ll_remove(&spans->child_ll, cur_span);
+@@ -826,6 +833,20 @@ static lv_snippet_t * lv_get_snippet(uint32_t index)
+     return &snippet_stack->stack[index];
+ }
+ 
++/* Anchors are rebuilt with layout and invalidated by text/style/size changes.
++ * A partial index remains valid if allocation fails; drawing can scan its tail. */
++static void cache_line(lv_spangroup_t * spans, lv_span_t * span, uint32_t offset, int32_t y, const lv_snippet_t * snippet)
++{
++    if(spans->line_count == spans->line_capacity) {
++        uint32_t capacity = spans->line_capacity ? spans->line_capacity * 2 : 16;
++        lv_span_line_t * lines = lv_realloc(spans->line_cache, capacity * sizeof(*lines));
++        if(!lines) return;
++        spans->line_cache = lines;
++        spans->line_capacity = capacity;
++    }
++    spans->line_cache[spans->line_count++] = (lv_span_line_t){span, offset, y, snippet->span, snippet->font, snippet->letter_space, snippet->line_h};
++}
++
+ static void lv_snippet_clear(void)
+ {
+     snippet_stack->index = 0;
+@@ -993,8 +1014,43 @@ static void lv_draw_span(lv_obj_t * obj, lv_layer_t * layer)
+     lv_draw_label_dsc_init(&label_draw_dsc);
+ 
+     bool is_first_line = true;
++    /* Layout is stable while scrolling. Jump to the first visible line instead
++     * of measuring every preceding glyph again for each partial draw buffer. */
++    if(spans->line_width != max_width) {
++        spans->line_count = 0;
++        spans->line_width = max_width;
++    }
++    if(spans->line_count) {
++        int32_t target_y = clip_area.y1 - coords.y1;
++        uint32_t lo = 0, hi = spans->line_count;
++        while(lo + 1 < hi) {
++            uint32_t mid = lo + (hi - lo) / 2;
++            if(spans->line_cache[mid].y <= target_y) lo = mid;
++            else hi = mid;
++        }
++        /* Keep the preceding line for glyph overhang and boundary clipping. */
++        if(lo > 0) lo--;
++        const lv_span_line_t * line = &spans->line_cache[lo];
++        cur_span = line->span;
++        cur_txt = cur_span->txt;
++        span_text_check(&cur_txt);
++        cur_txt_ofs = line->offset;
++        snippet.span = line->previous_span;
++        snippet.font = line->font;
++        snippet.letter_space = line->letter_space;
++        snippet.line_h = line->line_height;
++        txt_pos.y = coords.y1 + line->y;
++        is_first_line = lo == 0;
++        if(!is_first_line) {
++            txt_pos.x = coords.x1;
++            max_w = max_width;
++        }
++    }
+     /* the loop control how many lines need to draw */
+     while(cur_span) {
++        lv_span_t * line_span = cur_span;
++        uint32_t line_offset = cur_txt_ofs;
++        lv_snippet_t line_snippet = snippet;
+         bool is_end_line = false;
+         bool ellipsis_valid = false;
+         int32_t max_line_h = 0;  /* the max height of span-font when a line have a lot of span */
+@@ -1074,6 +1130,11 @@ static void lv_draw_span(lv_obj_t * obj, lv_layer_t * layer)
+             break;
+         }
+ 
++        int32_t line_y = txt_pos.y - coords.y1;
++        if(!spans->line_count || line_y > spans->line_cache[spans->line_count - 1].y) {
++            cache_line(spans, line_span, line_offset, line_y, &line_snippet);
++        }
++
+         /* Whether the current line is the end line and does overflow processing */
+         {
+             lv_snippet_t * last_snippet = lv_get_snippet(item_cnt - 1);
+diff --git a/src/widgets/span/lv_span_private.h b/src/widgets/span/lv_span_private.h
+index 3a82013..fa345ef 100644
+--- a/src/widgets/span/lv_span_private.h
++++ b/src/widgets/span/lv_span_private.h
+@@ -36,6 +36,16 @@ struct _lv_span_t {
+     int32_t trailing_height;
+ };
+ 
++typedef struct {
++    lv_span_t * span;
++    uint32_t offset;
++    int32_t y;
++    lv_span_t * previous_span;
++    const lv_font_t * font;
++    int32_t letter_space;
++    int32_t line_height;
++} lv_span_line_t;
++
+ /** Data of label*/
+ struct _lv_spangroup_t {
+     lv_obj_t obj;
+@@ -44,6 +54,10 @@ struct _lv_spangroup_t {
+     int32_t cache_w;        /**<  the cache automatically calculates the width */
+     int32_t cache_h;        /**<  similar cache_w */
+     lv_ll_t  child_ll;
++    lv_span_line_t * line_cache;
++    uint32_t line_count;
++    uint32_t line_capacity;
++    int32_t line_width;
+     uint32_t overflow : 1;  /**<  details see lv_span_overflow_t */
+     uint32_t refresh : 1;   /**<  the spangroup need refresh cache_w and cache_h */
+ };

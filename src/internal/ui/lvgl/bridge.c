@@ -20,6 +20,8 @@
 #define H 480
 static lv_obj_t *catalog;
 lv_font_t *dock_font_body,*dock_font_title,*dock_font_small,*dock_font_clock;
+static lv_font_t *emoji_body,*emoji_title,*emoji_small;
+static void *text_font_data,*emoji_font_data;
 static lv_display_t *display;
 static unsigned char *pixels;
 static void *draw_buffer;
@@ -124,6 +126,23 @@ static void preview_flush(lv_display_t *disp,const lv_area_t *area,uint8_t *data
     lv_display_flush_ready(disp);
 }
 
+/* All sizes share the same immutable font bytes. Tiny TTF otherwise seeks
+   through cmap/kerning tables for every measured glyph, even on cache hits. */
+static void *read_font_data(const char *path,size_t *size){
+    FILE *f=fopen(path,"rb");
+    if(!f)return NULL;
+    if(fseek(f,0,SEEK_END)!=0){fclose(f);return NULL;}
+    long length=ftell(f);
+    if(length<=0||length>32*1024*1024||fseek(f,0,SEEK_SET)!=0){fclose(f);return NULL;}
+    void *data=malloc((size_t)length);
+    if(data&&fread(data,1,(size_t)length,f)!=(size_t)length){free(data);data=NULL;}
+    fclose(f);
+    if(data)*size=(size_t)length;
+    return data;
+}
+static lv_font_t *create_font(const char *path,const void *data,size_t size,int pixels){
+    return data?lv_tiny_ttf_create_data(data,size,pixels):lv_tiny_ttf_create_file(path,pixels);
+}
 int dock_init(const char *framebuffer,const char *input,const char *font) {
     lv_init();lv_tick_set_cb(tick_ms);
     if(framebuffer&&*framebuffer){
@@ -143,15 +162,32 @@ int dock_init(const char *framebuffer,const char *input,const char *font) {
         lv_display_set_flush_cb(display,preview_flush);
     }
     char path[1024];snprintf(path,sizeof(path),"A:%s",font);
-    dock_font_body=lv_tiny_ttf_create_file(path,22);
-    dock_font_title=lv_tiny_ttf_create_file(path,30);
-    dock_font_small=lv_tiny_ttf_create_file(path,18);
-    dock_font_clock=lv_tiny_ttf_create_file(path,64);
+    size_t text_size=0,emoji_size=0;
+    text_font_data=read_font_data(font,&text_size);
+    dock_font_body=create_font(path,text_font_data,text_size,22);
+    dock_font_title=create_font(path,text_font_data,text_size,30);
+    dock_font_small=create_font(path,text_font_data,text_size,18);
+    dock_font_clock=create_font(path,text_font_data,text_size,64);
     if(!dock_font_body||!dock_font_title||!dock_font_small||!dock_font_clock)return -5;
     /* The Chinese font lacks LVGL's private-use keyboard icon glyphs. */
     dock_font_body->fallback=&lv_font_montserrat_22;
     dock_font_title->fallback=&lv_font_montserrat_22;
     dock_font_small->fallback=&lv_font_montserrat_22;
+    /* Optional outline emoji font beside the configured Chinese font. Keep
+       Montserrat at the end of each chain for the keyboard's icon glyphs. */
+    const char *slash=strrchr(font,'/');
+    snprintf(path,sizeof(path),"A:%.*sNotoEmoji.ttf",slash?(int)(slash-font+1):0,font);
+    if(access(path+2,R_OK)==0){
+        emoji_font_data=read_font_data(path+2,&emoji_size);
+        emoji_body=create_font(path,emoji_font_data,emoji_size,22);
+        emoji_title=create_font(path,emoji_font_data,emoji_size,30);
+        emoji_small=create_font(path,emoji_font_data,emoji_size,18);
+        if(!emoji_body||!emoji_title||!emoji_small)return -5;
+        emoji_body->fallback=emoji_title->fallback=emoji_small->fallback=&lv_font_montserrat_22;
+        dock_font_body->fallback=emoji_body;
+        dock_font_title->fallback=emoji_title;
+        dock_font_small->fallback=emoji_small;
+    }
     dock_theme_init(display);
 
     catalog=lv_obj_create(NULL);dock_panel(catalog,0x0c1220);
@@ -174,6 +210,11 @@ void dock_close(void){
  if(dock_font_body)lv_tiny_ttf_destroy(dock_font_body);
  if(dock_font_title)lv_tiny_ttf_destroy(dock_font_title);
  if(dock_font_small)lv_tiny_ttf_destroy(dock_font_small);
+ if(emoji_body)lv_tiny_ttf_destroy(emoji_body);
+ if(emoji_title)lv_tiny_ttf_destroy(emoji_title);
+ if(emoji_small)lv_tiny_ttf_destroy(emoji_small);
+ emoji_body=emoji_title=emoji_small=NULL;
+ free(text_font_data);free(emoji_font_data);text_font_data=emoji_font_data=NULL;
  dock_font_body=dock_font_title=dock_font_small=dock_font_clock=NULL;
  lv_deinit();
  free(pixels);free(draw_buffer);pixels=NULL;draw_buffer=NULL;

@@ -2,6 +2,7 @@
 # Supervise the foreground UI without waiting for a network connection.
 set -u
 base=/opt/hachimodock
+export HACHIMODOCK_SUPERVISED=1
 child=
 time_child=
 shutdown() {

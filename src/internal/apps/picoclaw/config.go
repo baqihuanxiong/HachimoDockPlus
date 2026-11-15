@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	DataDir string `json:"data_dir,omitempty"`
-	LLM     struct {
+	DataDir       string `json:"data_dir,omitempty"`
+	ExtensionsDir string `json:"extensions_dir,omitempty"`
+	LLM           struct {
 		config.Service
 		Model string `json:"model"`
 	} `json:"llm"`
@@ -34,6 +35,11 @@ func LoadConfig(root config.Config) (Config, error) {
 		c.DataDir = root.AppDataDir(ID)
 	} else {
 		c.DataDir = root.Resolve(c.DataDir)
+	}
+	if c.ExtensionsDir == "" {
+		c.ExtensionsDir = root.Resolve("agent")
+	} else {
+		c.ExtensionsDir = root.Resolve(c.ExtensionsDir)
 	}
 	c.LLM.KeyFile = root.Resolve(c.LLM.KeyFile)
 	c.ASR.KeyFile = root.Resolve(c.ASR.KeyFile)

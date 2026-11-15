@@ -14,6 +14,8 @@ HachimoDock 的魔改版，将 ESP32P4 主控替换为幸狐 Lyra Zero W RK3506B
 
 后续支持其他开发板时，在 `board/<开发板名>/` 下添加对应的板级适配文件；功能试验放在 `sandbox/<功能名>/` 下，并注明开发板与固件基线。
 
+后续应用组件开发从 [开发参考入口](src/references/README.md) 开始，统一查阅硬件基线、应用契约、实机闭环测试、自动化示例及测试报告模板。
+
 ## 当前开发板
 
 Lyra Zero W 的 WLK2802MIPI 屏幕与 CST826 触摸已完成实机验证，Go + LVGL 主程序提供 PicoClaw、网易云音乐及 Wi-Fi / 蓝牙 / 音频设置，支持开机自启、底板 SW2/SW3 按键、摇杆目录选择，以及可切换的时钟/纯黑屏保。CM108B 已支持 USB Audio 录放音，通过模块扩展现有内核，保留已验证的 RGB888 屏幕配置；详见 [USB 音频说明](board/lyra-zero-w/usb-audio.md)。

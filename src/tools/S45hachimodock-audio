@@ -1,0 +1,53 @@
+#!/bin/sh
+# Register the A2DP source profile before connecting Bluetooth headphones.
+set -eu
+pidfile=/var/run/hachimodock-bluealsa.pid
+running() {
+  [ -r "$pidfile" ] || return 1
+  read -r pid < "$pidfile"
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null && [ "$(readlink "/proc/$pid/exe")" = /usr/bin/bluealsa ]
+}
+existing() {
+  for candidate in $(pidof bluealsa 2>/dev/null); do
+    if [ "$(readlink "/proc/$candidate/exe")" = /usr/bin/bluealsa ]; then return 0; fi
+  done
+  return 1
+}
+ready() {
+  dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply --reply-timeout=1000 \
+    /org/freedesktop/DBus org.freedesktop.DBus.NameHasOwner string:org.bluealsa 2>/dev/null |
+    grep -q 'boolean true'
+}
+case "${1:-}" in
+ start)
+  # The vendor BlueZ stores bonds below /data, a symlink to /userdata.
+  # NAND images can omit that directory, leaving pairing keys unsaved.
+  if [ -L /data ] && [ "$(readlink /data)" = userdata ]; then
+    mkdir -p /userdata
+  fi
+  if [ -d /data ]; then
+    mkdir -p /data/lib/bluetooth
+    chmod 700 /data/lib/bluetooth
+  fi
+  if ready; then exit 0; fi
+  test -x /usr/bin/bluealsa
+  # Reuse a board-managed instance without starting a second D-Bus owner.
+  if ! running && ! existing; then
+    start-stop-daemon -S -q -m -b -p "$pidfile" -x /usr/bin/bluealsa -- -p a2dp-source
+  fi
+  tries=0
+  until ready; do tries=$((tries+1)); [ "$tries" -lt 30 ] || exit 1; sleep 0.1; done
+  ;;
+ stop)
+  if running; then
+    start-stop-daemon -K -q -p "$pidfile"
+    tries=0
+    while running; do tries=$((tries+1)); [ "$tries" -lt 30 ] || exit 1; sleep 0.1; done
+  fi
+  rm -f "$pidfile"
+  ;;
+ restart) "$0" stop; "$0" start;;
+ status) ready;;
+ *) echo "Usage: $0 start|stop|restart|status" >&2; exit 2;;
+esac

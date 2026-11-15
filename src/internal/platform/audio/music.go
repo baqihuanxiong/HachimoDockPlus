@@ -66,6 +66,9 @@ func (p *StreamPlayer) PlayFrom(ctx context.Context, address string, position in
 	if strings.TrimSpace(device) == "" {
 		device = "default"
 	}
+	if p.Volume != nil {
+		device = p.Volume.PlaybackDevice(device)
+	}
 	output := exec.CommandContext(ctx, "aplay", "-q", "-D", device, "-t", "raw", "-f", "S16_LE", "-r", "48000", "-c", "2")
 	reader, writer, err := os.Pipe()
 	if err != nil {
@@ -76,7 +79,7 @@ func (p *StreamPlayer) PlayFrom(ctx context.Context, address string, position in
 	decoder.WaitDelay = 2 * time.Second
 	decoder.Stdout = writer
 	decoder.Stderr = io.Discard
-	output.Stdin = reader
+	output.Stdin = outputPCM(reader, p.Volume)
 	output.Stderr = io.Discard
 	p.mu.Lock()
 	if err = output.Start(); err == nil {
@@ -98,7 +101,7 @@ func (p *StreamPlayer) PlayFrom(ctx context.Context, address string, position in
 	}
 	p.mu.Unlock()
 	writer.Close()
-	reader.Close()
+	// A software-volume reader is consumed by os/exec in the parent process.
 	decodeErr := decoder.Wait()
 	if decodeErr != nil {
 		_ = output.Process.Kill()
