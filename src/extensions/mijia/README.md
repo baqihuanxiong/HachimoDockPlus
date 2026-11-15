@@ -51,6 +51,8 @@ mijia devices refresh
 mijia devices list
 mijia device spec DEVICE_ID
 mijia device get DEVICE_ID
+# 从 spec 找到功率等目标属性的 SIID、PIID 后，可只读取该属性：
+mijia device get DEVICE_ID SIID PIID
 # 仅当目标设备的 spec 确认 SIID=2、PIID=1 为可写 bool 时：
 mijia device set DEVICE_ID 2 1 true
 # 按实际动作定义传入 JSON 数组：
@@ -60,6 +62,8 @@ mijia scenes run SCENE_ID
 ```
 
 stdout 输出 `{"ok":true,"data":...}`；错误写入 stderr 的 JSON，退出码为 1。`--help` 显示命令帮助。`devices list` 读取本地缓存，`devices refresh` 更新云端清单并清空能力缓存。
+
+`device get` 按属性返回结果。部分属性失败时保留成功读数，失败项包含原始 `code` 和带 SIID、PIID 的 `error`，不包含 `value`；只有 `code: 0` 的项可作为有效读数。所有属性失败时返回错误。`-704220043` 表示属性值无效，不能据此认定整台设备离线，也不能把缺失读数当成零。查询“弱电柜功率”时，先从该设备的 spec 找到功率属性，再用 `device get DID SIID PIID` 单独读取；目标属性本身失败时如实报告，不猜测功率。
 
 控制前校验账号设备范围、能力 ID、访问权限、JSON 类型、枚举和范围；动作参数按规格顺序校验，缺失定义时拒绝猜测。写入可读属性后读回，值匹配时状态为 `verified`，否则为 `accepted`。动作及场景只表示受理。控制请求不自动重试、不自动回滚；退出或取消不能撤回云端已经收到的命令。
 
@@ -71,4 +75,4 @@ stdout 输出 `{"ok":true,"data":...}`；错误写入 stderr 的 JSON，退出�
 tools/dev.sh sh -c 'cd extensions/mijia && go test -race ./... && go vet ./...'
 ```
 
-协议模拟测试覆盖真实 AES/RSA 加解密、OAuth state、令牌刷新、设备/能力解析、字符串/数字混合的大整数 ID 分页及缓存、参数校验、受理/读回状态及不重发控制。自动测试不连接真实米家账号、不发送真实设备命令。本板已完成真实 OAuth 授权和设备/场景同步；物理设备控制尚未实机验收。
+协议模拟测试覆盖真实 AES/RSA 加解密、OAuth state、令牌刷新、设备/能力解析、字符串/数字混合的大整数 ID 分页及缓存、参数校验、按属性读取、部分读取失败及跨批次结果保留、受理/读回状态及不重发控制。自动测试不连接真实米家账号、不发送真实设备命令。本板已完成真实 OAuth 授权和设备/场景同步；物理设备控制尚未实机验收。

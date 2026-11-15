@@ -26,6 +26,7 @@ func TestCloudProtocolAndDeviceControl(t *testing.T) {
 	}
 	var writes atomic.Int32
 	var mismatch atomic.Bool
+	var rejectWrite atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/miot-spec-v2/instance" {
 			io.WriteString(w, `{"services":[{"iid":2,"description":"Light","properties":[{"iid":1,"description":"On","type":"urn:miot-spec-v2:property:on:0","format":"bool","access":["read","write"]},{"iid":2,"description":"Brightness","format":"uint8","access":["read","write"],"value-range":[0,100,1]}],"actions":[{"iid":1,"description":"Toggle","in":[]}]}]}`)
@@ -66,7 +67,11 @@ func TestCloudProtocolAndDeviceControl(t *testing.T) {
 			result = []any{map[string]any{"scene_id": "scene", "scene_name": "Home scene", "room_id": 2}}
 		case "/app/v2/miotspec/prop/set":
 			writes.Add(1)
-			result = []any{map[string]any{"did": "lamp", "siid": 2, "piid": 1, "code": 0}}
+			code := 0
+			if rejectWrite.Load() {
+				code = -704220043
+			}
+			result = []any{map[string]any{"did": "lamp", "siid": 2, "piid": 1, "code": code}}
 		case "/app/v2/miotspec/prop/get":
 			result = []any{map[string]any{"did": "lamp", "siid": 2, "piid": 1, "code": 0, "value": !mismatch.Load()}}
 		case "/app/v2/miotspec/action":
@@ -140,6 +145,13 @@ func TestCloudProtocolAndDeviceControl(t *testing.T) {
 	}
 	if writes.Load() != 2 {
 		t.Fatal("write was retried")
+	}
+	rejectWrite.Store(true)
+	if _, err = a.run(ctx, []string{"device", "set", "lamp", "2", "1", "true"}); err == nil || !strings.Contains(err.Error(), "-704220043") {
+		t.Fatal("failed write treated as accepted", err)
+	}
+	if writes.Load() != 3 {
+		t.Fatal("failed write was retried")
 	}
 	if _, err = a.run(ctx, []string{"device", "action", "lamp", "2", "1", "[]"}); err != nil {
 		t.Fatal(err)

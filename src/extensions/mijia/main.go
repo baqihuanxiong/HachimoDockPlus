@@ -26,7 +26,7 @@ const usage = `mijia — standalone Mi Home cloud CLI (JSON output)
   auth status | auth logout
   devices refresh | devices list
   device spec DID
-  device get DID                     read all readable properties
+  device get DID [SIID PIID]         read all readable properties or one property
   device set DID SIID PIID JSON_VALUE
   device action DID SIID AIID JSON_ARRAY
   scenes list | scenes run ID
@@ -182,10 +182,19 @@ func (a *app) run(ctx context.Context, args []string) (any, error) {
 		}
 		return a.describe(ctx, args[2])
 	case "device get":
-		if len(args) != 3 {
-			return nil, errors.New("用法：device get DID")
+		if len(args) != 3 && len(args) != 5 {
+			return nil, errors.New("用法：device get DID [SIID PIID]")
 		}
-		return a.readProperties(ctx, args[2])
+		siid, piid := 0, 0
+		if len(args) == 5 {
+			var e1, e2 error
+			siid, e1 = strconv.Atoi(args[3])
+			piid, e2 = strconv.Atoi(args[4])
+			if e1 != nil || e2 != nil || siid <= 0 || piid <= 0 {
+				return nil, errors.New("能力 ID 必须为正整数")
+			}
+		}
+		return a.readProperties(ctx, args[2], siid, piid)
 	case "device set", "device action":
 		return a.control(ctx, args)
 	default:
@@ -193,18 +202,22 @@ func (a *app) run(ctx context.Context, args []string) (any, error) {
 	}
 }
 
-func (a *app) readProperties(ctx context.Context, did string) (any, error) {
+func (a *app) readProperties(ctx context.Context, did string, siid, piid int) (any, error) {
 	s, err := a.describe(ctx, did)
 	if err != nil {
 		return nil, err
 	}
 	params := []map[string]any{}
 	for _, p := range s.Properties {
-		if hasAccess(p, "read") {
+		if hasAccess(p, "read") && (siid == 0 || p.SIID == siid && p.PIID == piid) {
 			params = append(params, map[string]any{"did": did, "siid": p.SIID, "piid": p.PIID})
 		}
 	}
-	var result []propertyResult
+	if len(params) == 0 {
+		return nil, errors.New("设备属性不存在或不可读")
+	}
+	result := []propertyResult{}
+	succeeded := false
 	for start := 0; start < len(params); start += 100 {
 		end := start + 100
 		if end > len(params) {
@@ -214,14 +227,34 @@ func (a *app) readProperties(ctx context.Context, did string) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = checkResult(raw); err != nil {
-			return nil, err
-		}
 		var batch []propertyResult
 		if json.Unmarshal(raw, &batch) != nil {
 			return nil, errors.New("属性响应无效")
 		}
+		if len(batch) == 0 {
+			return nil, errors.New("设备未返回属性结果")
+		}
+		for i := range batch {
+			r := &batch[i]
+			if r.Code == nil {
+				return nil, errors.New("属性结果缺少状态码")
+			}
+			if *r.Code == 0 {
+				if r.Value == nil {
+					return nil, errors.New("属性结果缺少有效读数")
+				}
+				r.Error = ""
+				succeeded = true
+			} else {
+				// A failed optional property must not discard other readings.
+				r.Value = nil
+				r.Error = propertyReadError(*r)
+			}
+		}
 		result = append(result, batch...)
+	}
+	if !succeeded {
+		return nil, fmt.Errorf("未读到有效属性：%s（共 %d 项失败）", result[0].Error, len(result))
 	}
 	return result, nil
 }

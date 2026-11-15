@@ -195,7 +195,16 @@ type propertyResult struct {
 	SIID  int    `json:"siid"`
 	PIID  int    `json:"piid"`
 	Code  *int   `json:"code"`
-	Value any    `json:"value"`
+	Value any    `json:"value,omitempty"`
+	Error string `json:"error,omitempty"`
+}
+
+func propertyReadError(r propertyResult) string {
+	message := "属性读取失败"
+	if *r.Code == -704220043 {
+		message = "属性值无效，云端未提供有效读数"
+	}
+	return fmt.Sprintf("SIID=%d PIID=%d：%s（代码 %d）", r.SIID, r.PIID, message, *r.Code)
 }
 
 func checkResult(raw json.RawMessage) error {
