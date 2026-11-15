@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"hachimodockplus/internal/apps/music"
+	"hachimodockplus/internal/apps/newapi"
 	app "hachimodockplus/internal/apps/picoclaw"
 	"hachimodockplus/internal/apps/settings"
 	"hachimodockplus/internal/config"
@@ -57,8 +58,9 @@ func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
 		Preferences: prefs,
 		Status:      monitor,
 		Host:        core.NewHost(ctx, registry),
-		Pages:       []lvgl.Page{lvgl.NewPicoClawPage(), lvgl.NewSettingsPage(), lvgl.NewMusicPage()},
+		Pages:       []lvgl.Page{lvgl.NewPicoClawPage(), lvgl.NewSettingsPage(), lvgl.NewMusicPage(), lvgl.NewNewAPIPage()},
 		Commands: terminal.Commands{
+			newapi.ID:   {"/refresh": newapi.ActionRefresh, "/reset": newapi.ActionReset, "/confirm": newapi.ActionConfirm, "/cancel": newapi.ActionCancel},
 			music.ID:    {"/play": "play.toggle", "/next": "track.next", "/previous": "track.previous", "/logout": "logout"},
 			settings.ID: {"/refresh": "refresh", "/scan": "wifi.scan", "/bt-scan": "bt.scan"},
 			app.ID:      {"": app.ActionSubmit, "/voice": app.ActionVoice, "/stop": app.ActionCancel, "/new": app.ActionNew},
@@ -95,6 +97,16 @@ func applicationRegistry(cfg config.Config, prefs *preferences.Store, volume *au
 			return nil, err
 		}
 		return music.New(client, &audio.StreamPlayer{Device: cfg.Audio.PlaybackDevice, Volume: volume}, volume), nil
+	}}, core.Registration{Manifest: newapi.Manifest, New: func() (core.Application, error) {
+		c, err := newapi.LoadConfig(cfg)
+		if err != nil {
+			return nil, err
+		}
+		client, err := newapi.NewClient(c)
+		if err != nil {
+			return nil, err
+		}
+		return newapi.New(c, client), nil
 	}})
 	if err != nil {
 		return nil, err

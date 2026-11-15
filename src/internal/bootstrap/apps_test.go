@@ -24,7 +24,7 @@ func TestCatalogDoesNotInitializePicoClaw(t *testing.T) {
 	}
 	defer desktop.Close()
 	s := desktop.Host.Snapshot()
-	if s.Active != "" || len(s.Applications) != 3 {
+	if s.Active != "" || len(s.Applications) != 4 {
 		t.Fatal(s)
 	}
 	if _, err = os.Stat(filepath.Join(dir, "data")); !os.IsNotExist(err) {
@@ -50,9 +50,10 @@ func TestConfiguredCatalogOrderUsesRegisteredIDsWithoutServices(t *testing.T) {
 		order []string
 		want  []string
 	}{
-		{nil, []string{"picoclaw", "settings", "music"}},
-		{[]string{"music"}, []string{"music", "picoclaw", "settings"}},
-		{[]string{"settings", "music", "picoclaw"}, []string{"settings", "music", "picoclaw"}},
+		{nil, []string{"picoclaw", "settings", "music", "newapi-monitor"}},
+		{[]string{"music"}, []string{"music", "picoclaw", "settings", "newapi-monitor"}},
+		{[]string{"settings", "music", "picoclaw"}, []string{"settings", "music", "picoclaw", "newapi-monitor"}},
+		{[]string{"newapi-monitor"}, []string{"newapi-monitor", "picoclaw", "settings", "music"}},
 		{[]string{"not-installed"}, nil},
 		{[]string{"music", "music"}, nil},
 	} {

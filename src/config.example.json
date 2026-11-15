@@ -10,7 +10,7 @@
     "bluetooth_device": ""
   },
   "ui": {
-    "app_order": ["picoclaw", "settings", "music"],
+    "app_order": ["picoclaw", "settings", "music", "newapi-monitor"],
     "timezone": "Asia/Shanghai",
     "controls": {
       "disabled": false,
@@ -23,6 +23,15 @@
     "font": ".local/assets/wqy-microhei.ttc"
   },
   "apps": {
+    "newapi-monitor": {
+      "url": "https://your-newapi.example",
+      "admin_id": 1,
+      "key_file": ".local/secrets/newapi-admin.key",
+      "top_n": 10,
+      "reset_usd": 200,
+      "refresh_seconds": 300,
+      "providers": []
+    },
     "picoclaw": {
       "extensions_dir": "agent",
       "llm": {

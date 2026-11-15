@@ -35,6 +35,7 @@
 - [FunASR 接口](asr_interface.md)
 - [CosyVoice 接口](tts_interface.md)
 - [网易云音乐实现与验证](music.md)
+- [NewAPI 网关监控、上游套餐余额与用户余额重置](newapi-monitor.md)
 - [PicoClaw 通用工具、技能、CLI 与 MCP](picoclaw-extensions.md)
 - [独立米家 CLI](../extensions/mijia/README.md)
 

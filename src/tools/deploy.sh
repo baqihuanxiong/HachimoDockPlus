@@ -24,7 +24,7 @@ cp .local/config.json "$package/config.json"
 cp .local/secrets/*.key "$package/secrets/"
 cp -r .local/assets/. "$package/assets/"
 cp assets/app-icons/*.png "$package/assets/app-icons/"
-cp assets/app-icons/PICOCLAW-LICENSE.txt "$package/assets/app-icons/"
+cp assets/app-icons/*-LICENSE.txt "$package/assets/app-icons/"
 chmod 700 "$package" "$package/secrets"
 chmod 600 "$package/config.json" "$package"/secrets/*.key
 tar -czf "$archive" -C "$package" .
@@ -74,8 +74,16 @@ chmod 755 "$base/releases/$version/dock.new"
 mv -f "$base/releases/$version/dock.new" "$base/releases/$version/dock"
 chmod 755 "$base/releases/$version/dock"
 mkdir -p "$base/assets"
-# Assets are user configuration: retain uploaded voices/fonts on code deployment.
-cp -rn "$stage/assets/." "$base/assets/"
+# BusyBox cp -rn skips an existing directory as a whole. Add missing files
+# individually so new icons arrive while uploaded voices/fonts are retained.
+find "$stage/assets" -type f | while IFS= read -r asset; do
+  relative=${asset#"$stage/assets/"}
+  target="$base/assets/$relative"
+  if [ ! -e "$target" ] && [ ! -L "$target" ]; then
+    mkdir -p "$(dirname "$target")"
+    cp "$asset" "$target"
+  fi
+done
 # Preserve board-local endpoints and credentials on subsequent code deployments.
 if [ ! -e "$base/config.json" ]; then
   cp "$stage/config.json" "$base/config.json"

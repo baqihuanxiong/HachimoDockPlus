@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"hachimodockplus/internal/apps/newapi"
 	app "hachimodockplus/internal/apps/picoclaw"
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/platform/system"
@@ -27,6 +28,25 @@ func systemServices(installed config.Config) *system.Manager {
 		}
 		if _, err = time.LoadLocation(candidate.UI.Timezone); err != nil {
 			return errors.New("显示时区无效")
+		}
+		if _, ok := candidate.Apps[newapi.ID]; ok {
+			c, err := newapi.LoadConfig(candidate)
+			if err != nil {
+				return err
+			}
+			services := []config.Service{c.Service}
+			for _, p := range c.Providers {
+				services = append(services, p.Service)
+			}
+			for _, service := range services {
+				relative, err := filepath.Rel(filepath.Join(base, "secrets"), service.KeyFile)
+				if err == nil && relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative) {
+					service.KeyFile = filepath.Join(secretDir, relative)
+				}
+				if _, err := service.Key(); err != nil {
+					return fmt.Errorf("NewAPI：%w", err)
+				}
+			}
 		}
 		font, err := os.Stat(system.CandidatePath(base, filepath.Dir(secretDir), candidate.UI.Font))
 		if err != nil || !font.Mode().IsRegular() {

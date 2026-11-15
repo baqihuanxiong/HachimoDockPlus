@@ -15,3 +15,11 @@
 - 下载日期：2026-11-14
 - 原始 ICO SHA-256：`90d4c1e2dcc6f2728a2627a6a625879e8305821bf1bb297a1041e6ccca0d13b1`
 - PNG SHA-256：`6d8ce15ff41b2db7ec3d5a9f0dbaa7c4d0f2fa277af44236e0d24e8fb78cbd38`
+
+
+`newapi.png` 原样取自 [NewAPI 官方仓库](https://github.com/QuantumNous/new-api) 的 `web/public/logo.png`，180×180 透明 PNG，用于标识 NewAPI 监控应用，不重新绘制或改变品牌颜色。
+
+- 固定提交：`57345547be11b8cc0d58252622d7319545fc6fdd`
+- [原始文件](https://github.com/QuantumNous/new-api/blob/57345547be11b8cc0d58252622d7319545fc6fdd/web/public/logo.png)
+- SHA-256：`5b20392caae1c558b6d04743f9c0a731237914433c216caf91fd44564a8f5f2b`
+- 上游仓库版权归 QuantumNous，仓库提供 AGPL-3.0，原文随附 [NEWAPI-LICENSE.txt](NEWAPI-LICENSE.txt)；标志与商标归其权利人所有。安装和部署同时保留该许可。
