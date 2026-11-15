@@ -106,8 +106,11 @@ func (s *Service) scanBluetooth(ctx context.Context, window time.Duration) error
 	}
 	s.btMu.Lock()
 	for address, d := range s.btDevices {
-		if !d.Paired {
+		if !d.Paired && !d.Trusted {
 			delete(s.btDevices, address)
+		} else {
+			d.Available = false
+			s.btDevices[address] = d
 		}
 	}
 	if s.btDevices == nil {
@@ -118,11 +121,23 @@ func (s *Service) scanBluetooth(ctx context.Context, window time.Duration) error
 		defer close(scan.done)
 		defer cancel()
 		defer input.Close()
+		defer func() {
+			s.btMu.Lock()
+			defer s.btMu.Unlock()
+			for address, d := range s.btDevices {
+				d.Available = false
+				s.btDevices[address] = d
+			}
+		}()
 		reader := bufio.NewScanner(output)
 		reader.Buffer(make([]byte, 4096), 64<<10)
 		failed := false
+		discovering := false
 		for reader.Scan() {
 			line := ansi.ReplaceAllString(reader.Text(), "")
+			if strings.Contains(line, "Discovery started") || (strings.Contains(line, "Controller ") && strings.Contains(line, "Discovering: yes")) {
+				discovering = true
+			}
 			if strings.Contains(line, "Failed") || strings.Contains(line, "No default controller") {
 				failed = true
 			}
@@ -130,7 +145,7 @@ func (s *Service) scanBluetooth(ctx context.Context, window time.Duration) error
 			if s.btDevices == nil {
 				s.btDevices = map[string]Device{}
 			}
-			updateScanDevices(s.btDevices, line)
+			updateScanDevices(s.btDevices, line, discovering)
 			s.btMu.Unlock()
 		}
 		readErr := reader.Err()

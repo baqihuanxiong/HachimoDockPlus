@@ -18,6 +18,8 @@ import (
 var ansi = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
 var mac = regexp.MustCompile(`(?i)^[0-9a-f]{2}(:[0-9a-f]{2}){5}$`)
 
+const bluetoothPresenceTTL = 45 * time.Second
+
 func bluetooth(ctx context.Context, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
@@ -63,10 +65,10 @@ func (s *Service) readBluetooth(ctx context.Context, st *State) {
 		s.btDevices = map[string]Device{}
 	}
 	for address, d := range s.btDevices {
-		d.Available = false
 		d.Connected = false
 		s.btDevices[address] = d
 	}
+	present := make(map[string]bool)
 	for _, line := range strings.Split(out, "\n") {
 		p := strings.SplitN(strings.TrimSpace(line), " ", 3)
 		if len(p) < 3 || p[0] != "Device" || !mac.MatchString(p[1]) {
@@ -78,7 +80,7 @@ func (s *Service) readBluetooth(ctx context.Context, st *State) {
 		}
 		d := s.btDevices[address]
 		d.Address = address
-		d.Available = true
+		present[address] = true
 		if friendlyName(p[2]) != "" {
 			d.Name = friendlyName(p[2])
 		}
@@ -88,9 +90,26 @@ func (s *Service) readBluetooth(ctx context.Context, st *State) {
 		if e == nil {
 			d = deviceInfo(d, info)
 		}
+		if _, exists := s.btDevices[address]; !exists && !d.Paired && !d.Trusted && !d.Connected {
+			continue
+		}
 		s.btDevices[address] = d
 	}
+	refreshBluetoothPresence(s.btDevices, present, time.Now())
 	st.Devices = sortedDevices(s.btDevices)
+}
+
+// Device objects and their properties can survive for months without any radio
+// contact. Only a live discovery event or a connection establishes presence.
+func refreshBluetoothPresence(devices map[string]Device, present map[string]bool, now time.Time) {
+	for address, d := range devices {
+		if !present[address] {
+			d.Paired = false
+			d.Trusted = false
+		}
+		d.Available = d.Connected || (present[address] && d.Available && !d.lastSeen.IsZero() && now.Sub(d.lastSeen) < bluetoothPresenceTTL)
+		devices[address] = d
+	}
 }
 func (s *Service) cachedBluetooth(st *State) {
 	s.btMu.Lock()
@@ -160,6 +179,9 @@ func deviceInfo(d Device, info string) Device {
 func sortedDevices(devices map[string]Device) []Device {
 	out := make([]Device, 0, len(devices))
 	for _, d := range devices {
+		if !d.Available && !d.Paired && !d.Trusted && !d.Connected && d.lastSeen.IsZero() {
+			continue
+		}
 		out = append(out, d)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -167,11 +189,17 @@ func sortedDevices(devices map[string]Device) []Device {
 		if a.Connected != b.Connected {
 			return a.Connected
 		}
-		if a.Audio != b.Audio {
-			return a.Audio
+		if a.Available != b.Available {
+			return a.Available
 		}
 		if a.Paired != b.Paired {
 			return a.Paired
+		}
+		if a.Trusted != b.Trusted {
+			return a.Trusted
+		}
+		if a.Audio != b.Audio {
+			return a.Audio
 		}
 		if (a.Name != "") != (b.Name != "") {
 			return a.Name != ""
@@ -197,7 +225,7 @@ func sortedDevices(devices map[string]Device) []Device {
 
 // scanDevices retains names and properties emitted while discovery is alive,
 // even if BlueZ removes those temporary objects as bluetoothctl disconnects.
-func updateScanDevices(devices map[string]Device, out string) {
+func updateScanDevices(devices map[string]Device, out string, discovering bool) {
 	for _, line := range strings.Split(out, "\n") {
 		at := strings.Index(line, "Device ")
 		if at < 0 {
@@ -210,7 +238,6 @@ func updateScanDevices(devices map[string]Device, out string) {
 		address := strings.ToUpper(p[0])
 		d := devices[address]
 		d.Address = address
-		d.Available = true
 		if strings.Contains(line[:at], "[DEL]") {
 			d.Available = false
 			devices[address] = d
@@ -220,6 +247,14 @@ func updateScanDevices(devices map[string]Device, out string) {
 			d = deviceInfo(d, p[1])
 		} else if name := friendlyName(p[1]); name != "" {
 			d.Name = name
+		}
+		// bluetoothctl initially enumerates cached [NEW] objects. Metadata such
+		// as Name or Trusted can also change without a received advertisement.
+		key, _, _ := strings.Cut(p[1], ":")
+		radioUpdate := key == "RSSI" || key == "ManufacturerData" || key == "ServiceData"
+		if discovering && (strings.Contains(line[:at], "[NEW]") || radioUpdate) {
+			d.lastSeen = time.Now()
+			d.Available = true
 		}
 		if len(devices) < 128 || devices[address].Address != "" {
 			devices[address] = d

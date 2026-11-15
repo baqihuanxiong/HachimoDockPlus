@@ -359,7 +359,7 @@ int main(int argc,char **argv) {
         lv_obj_send_event(wifi_tab,LV_EVENT_CLICKED,NULL);
         dock_settings_network("0","Home","已保存",-45,1);
         dock_settings_network("","Cafe \" guest","WPA-PSK",-60,0);
-        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones","耳机",1,0,1);
+        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones","耳机",1,0,1,1);
         lv_obj_t *row=lv_obj_get_child(wifi_list,0);
         lv_obj_send_event(lv_obj_get_child(row,2),LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"wifi.connect")&&!strcmp(event.text,"0"));
@@ -375,10 +375,27 @@ int main(int argc,char **argv) {
         assert(!join_dialog);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"wifi.join"));
         assert(strstr(event.text,"hello123")&&strstr(event.text,"WPA-PSK"));
-        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones","耳机",1,0,1);
+        dock_settings_device("AA:BB:CC:DD:EE:FF","Headphones","耳机",1,0,1,1);
         row=lv_obj_get_child(bt_list,0);
-        lv_obj_send_event(lv_obj_get_child(row,2),LV_EVENT_CLICKED,NULL);
+        lv_obj_send_event(bt_tab,LV_EVENT_CLICKED,NULL);lv_obj_update_layout(bt_list);
+        assert(lv_obj_get_x(lv_obj_get_child(row,3))>lv_obj_get_x(lv_obj_get_child(row,2)));
+        lv_obj_send_event(lv_obj_get_child(row,3),LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"bt.connect")&&!strcmp(event.text,"AA:BB:CC:DD:EE:FF"));
+        dock_settings_clear();
+        dock_settings_device("11:22:33:44:55:66","Nearby headphones","耳机",0,0,0,1);
+        row=lv_obj_get_child(bt_list,0);
+        lv_obj_update_layout(bt_list);
+        lv_obj_t *pair_button=lv_obj_get_child(row,2);
+        assert(lv_obj_get_x(pair_button)==476&&!lv_obj_has_state(pair_button,LV_STATE_DISABLED));
+        lv_obj_send_event(pair_button,LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"bt.pair")&&!strcmp(event.text,"11:22:33:44:55:66"));
+        dock_settings_device("FC:E8:06:30:C7:F0","Saved speaker","音箱",0,0,1,0);
+        row=lv_obj_get_child(bt_list,1);
+        assert(strstr(lv_label_get_text(lv_obj_get_child(row,1)),"已保存"));
+        assert(strstr(lv_label_get_text(lv_obj_get_child(row,1)),"未发现"));
+        assert(lv_obj_has_state(lv_obj_get_child(row,3),LV_STATE_DISABLED));
+        lv_obj_send_event(lv_obj_get_child(row,2),LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"bt.remove")&&!strcmp(event.text,"FC:E8:06:30:C7:F0"));
         dock_show_catalog();dock_settings_unmount();
     }
     close(fds[1]);dock_close();

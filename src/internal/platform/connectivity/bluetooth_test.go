@@ -42,7 +42,7 @@ func TestBluetoothScanRetainsNamesAndAudioTypeAfterBlueZExpiresDevices(t *testin
 case "$1" in
  show) printf 'Controller AA:BB:CC:DD:EE:FF\n\tPowered: yes\n';;
  devices) exit 0;;
- '') read -r command; printf '[NEW] Device 11:22:33:44:55:66 11-22-33-44-55-66\n[CHG] Device 11:22:33:44:55:66 Name: \\xE8\\x80\\xB3\\xE6\\x9C\\xBA\n[CHG] Device 11:22:33:44:55:66 Icon: audio-headphones\n[CHG] Device 11:22:33:44:55:66 Alias: 我的耳机\n[NEW] Device AA:22:33:44:55:66 AA2233445566\n';;
+ '') read -r command; printf 'Discovery started\n[NEW] Device 11:22:33:44:55:66 11-22-33-44-55-66\n[CHG] Device 11:22:33:44:55:66 Name: \\xE8\\x80\\xB3\\xE6\\x9C\\xBA\n[CHG] Device 11:22:33:44:55:66 Icon: audio-headphones\n[CHG] Device 11:22:33:44:55:66 Alias: 我的耳机\n[NEW] Device AA:22:33:44:55:66 AA2233445566\n';;
  power|remove) exit 0;;
  *) exit 1;;
 esac
@@ -86,6 +86,61 @@ func TestBluetoothInfoUsesAliasAndRecognizesSinkUUID(t *testing.T) {
 	}
 }
 
+func TestSavedBluetoothRecordDoesNotCountAsDiscovery(t *testing.T) {
+	dir := t.TempDir()
+	script := `#!/bin/sh
+case "$1" in
+ show) printf 'Controller AA:BB:CC:DD:EE:FF\n\tPowered: yes\n';;
+ devices) printf 'Device FC:E8:06:30:C7:F0 EDIFIER S1000MKII\nDevice 11:22:33:44:55:66 Old neighbour\n';;
+ info)
+  if [ "$2" = FC:E8:06:30:C7:F0 ]; then
+   printf 'Name: EDIFIER S1000MKII\nPaired: no\nTrusted: yes\nConnected: no\nRSSI: -40\n'
+  else
+   printf 'Name: Old neighbour\nPaired: no\nTrusted: no\nConnected: no\nRSSI: -40\n'
+  fi;;
+ *) exit 1;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(dir, "bluetoothctl"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	service := New()
+	for range 2 {
+		var st State
+		service.readBluetooth(context.Background(), &st)
+		if len(st.Devices) != 1 || !st.Devices[0].Trusted || st.Devices[0].Available || st.Devices[0].Connected {
+			t.Fatal("cached objects/RSSI were presented as live discovery", st)
+		}
+	}
+}
+
+func TestBluetoothPresenceRequiresRadioEventsAndExpires(t *testing.T) {
+	const address = "FC:E8:06:30:C7:F0"
+	devices := map[string]Device{}
+	updateScanDevices(devices, "[NEW] Device "+address+" EDIFIER S1000MKII", false)
+	updateScanDevices(devices, "[CHG] Device "+address+" Trusted: yes", false)
+	updateScanDevices(devices, "[CHG] Device "+address+" Alias: Saved speaker", true)
+	if devices[address].Available || !devices[address].lastSeen.IsZero() {
+		t.Fatal("enumeration/metadata established presence", devices[address])
+	}
+	updateScanDevices(devices, "[CHG] Device "+address+" RSSI: -45", true)
+	d := devices[address]
+	if !d.Available || d.lastSeen.IsZero() {
+		t.Fatal("live advertisement not retained", d)
+	}
+	present := map[string]bool{address: true}
+	refreshBluetoothPresence(devices, present, d.lastSeen.Add(bluetoothPresenceTTL+time.Second))
+	if devices[address].Available || !devices[address].Trusted || len(sortedDevices(devices)) != 1 {
+		t.Fatal("stale advertisement remained nearby or saved row disappeared", devices[address])
+	}
+	updateScanDevices(devices, "[NEW] Device 11:22:33:44:55:66 Nearby headphones", true)
+	rows := sortedDevices(devices)
+	if len(rows) != 2 || rows[0].Address != "11:22:33:44:55:66" {
+		t.Fatal("saved rows displaced nearby devices", rows)
+	}
+}
+
 func TestDiscoveryOwnerLivesUntilPageCloses(t *testing.T) {
 	dir := t.TempDir()
 	script := `#!/bin/sh
@@ -93,7 +148,7 @@ case "$1" in
  '')
   read -r command
   echo $$ > "$DOCK_BT_TEST_PID"
-  printf '[NEW] Device 11:22:33:44:55:66 Headphones\n[CHG] Device 11:22:33:44:55:66 Icon: audio-headphones\n'
+  printf 'Discovery started\n[NEW] Device 11:22:33:44:55:66 Headphones\n[CHG] Device 11:22:33:44:55:66 Icon: audio-headphones\n'
   exec /bin/sleep 60;;
  show) printf 'Controller AA:BB:CC:DD:EE:FF\n\tPowered: yes\n';;
  devices) if [ -f "$DOCK_BT_TEST_PID" ]; then read -r pid < "$DOCK_BT_TEST_PID"; if kill -0 "$pid" 2>/dev/null; then echo 'Device 11:22:33:44:55:66 Headphones'; fi; fi;;

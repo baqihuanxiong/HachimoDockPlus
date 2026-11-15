@@ -114,7 +114,7 @@ func (p *settingsPage) Render(snapshot core.AppSnapshot) error {
 		}
 		for _, d := range st.Devices {
 			withStrings([]string{d.Address, d.Name, bluetoothType(d)}, func(cs []*C.char) {
-				C.dock_settings_device(cs[0], cs[1], cs[2], flag(d.Paired), flag(d.Connected), flag(d.Available))
+				C.dock_settings_device(cs[0], cs[1], cs[2], flag(d.Paired), flag(d.Connected), flag(d.Trusted), flag(d.Available))
 			})
 		}
 	}

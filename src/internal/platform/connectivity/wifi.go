@@ -29,6 +29,7 @@ type Device struct {
 	Kind                       int
 	Audio                      bool
 	Available                  bool
+	lastSeen                   time.Time
 }
 type State struct {
 	WiFiStatus, SSID, IP, WiFiError string

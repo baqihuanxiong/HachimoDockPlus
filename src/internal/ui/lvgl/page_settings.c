@@ -144,7 +144,7 @@ int dock_settings_mount(void){
  bt_status=dock_label(bt_panel,"",0,0,608,dock_font_body,0xe2e8f0);lv_obj_set_height(bt_status,30);lv_label_set_long_mode(bt_status,LV_LABEL_LONG_DOT);
  bt_power=dock_button(bt_panel,"开启蓝牙",0,38,200,44,0x334155,NULL,NULL);bt_power_text=lv_obj_get_child(bt_power,0);lv_obj_add_event_cb(bt_power,settings_power,LV_EVENT_CLICKED,NULL);
  bt_scan=dock_button(bt_panel,"扫描设备",216,38,200,44,0x0f766e,NULL,NULL);lv_obj_add_event_cb(bt_scan,settings_command,LV_EVENT_CLICKED,"bt.scan");bt_list=settings_list(bt_panel);
- dock_label(bt_panel,"耳机 / 音箱优先；上次发现不代表当前在线",0,86,608,dock_font_small,0x94a3b8);lv_obj_set_y(bt_list,116);lv_obj_set_height(bt_list,246);
+ dock_label(bt_panel,"附近设备优先；已保存不代表当前在线",0,86,608,dock_font_small,0x94a3b8);lv_obj_set_y(bt_list,116);lv_obj_set_height(bt_list,246);
  appearance_panel=lv_obj_create(settings_screen);dock_panel(appearance_panel,0x0c1220);lv_obj_set_pos(appearance_panel,16,106);lv_obj_set_size(appearance_panel,608,366);lv_obj_remove_flag(appearance_panel,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(appearance_panel,LV_OBJ_FLAG_HIDDEN);
  dock_label(appearance_panel,"显示模式",0,10,152,dock_font_body,0xe2e8f0);
  mode_light_button=dock_button(appearance_panel,"白天模式",168,0,204,44,0x334155,NULL,NULL);lv_obj_add_event_cb(mode_light_button,mode_clicked,LV_EVENT_CLICKED,"light");
@@ -195,12 +195,12 @@ void dock_settings_network(const char *id,const char *ssid,const char *security,
  lv_obj_t *connect=dock_button(row,current?"重连":"连接",364,10,100,68,0x0f766e,NULL,NULL);lv_obj_add_event_cb(connect,network_clicked,LV_EVENT_CLICKED,r);if(!strcmp(security,"不支持"))set_enabled(connect,0);
  if(*id){lv_obj_t *forget=dock_button(row,"忘记",476,10,106,68,0x334155,NULL,NULL);lv_obj_add_event_cb(forget,network_forget,LV_EVENT_CLICKED,r);}
 }
-void dock_settings_device(const char *address,const char *name,const char *kind,int paired,int connected,int available){
+void dock_settings_device(const char *address,const char *name,const char *kind,int paired,int connected,int trusted,int available){
  setting_row *r=calloc(1,sizeof(*r));if(!r)return;snprintf(r->address,sizeof(r->address),"%s",address);r->paired=paired;r->connected=connected;lv_obj_t *row=settings_row(bt_list,r);
  lv_obj_t *label=dock_label(row,name,12,8,340,dock_font_body,0xf1f5f9);lv_obj_set_height(label,28);lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
- char detail[120];snprintf(detail,sizeof(detail),"%s · %s · %s%s",address,kind,connected?"已连接":paired?"已配对":"未配对",available?"":" · 上次发现");dock_label(row,detail,12,49,340,dock_font_small,0x94a3b8);
- lv_obj_t *connect=dock_button(row,connected?"断开":paired?"连接":"配对",364,10,100,68,0x0f766e,NULL,NULL);lv_obj_add_event_cb(connect,device_clicked,LV_EVENT_CLICKED,r);
- if(paired){lv_obj_t *forget=dock_button(row,"移除",476,10,106,68,0x334155,NULL,NULL);lv_obj_add_event_cb(forget,device_forget,LV_EVENT_CLICKED,r);}
+ char detail[160];snprintf(detail,sizeof(detail),"%s · %s · %s%s",address,kind,connected?"已连接":paired?"已配对":trusted?"已保存":"未配对",connected?"":available?" · 附近发现":(paired||trusted)?" · 未发现":" · 上次发现");dock_label(row,detail,12,49,340,dock_font_small,0x94a3b8);
+ if(paired||trusted){lv_obj_t *forget=dock_button(row,"移除",364,10,100,68,0x334155,NULL,NULL);lv_obj_add_event_cb(forget,device_forget,LV_EVENT_CLICKED,r);}
+ lv_obj_t *connect=dock_button(row,connected?"断开":paired?"连接":"配对",476,10,106,68,0x0f766e,NULL,NULL);lv_obj_add_event_cb(connect,device_clicked,LV_EVENT_CLICKED,r);set_enabled(connect,connected||paired||available);
 }
 void dock_settings_unmount(void){settings_system_close();close_join();if(settings_screen){lv_obj_delete(settings_screen);settings_screen=NULL;}}
 
