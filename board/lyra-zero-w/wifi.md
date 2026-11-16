@@ -34,6 +34,6 @@ Luckfox 的 [Zero W 无线说明](https://wiki.luckfox.com/Luckfox-Lyra/Luckfox-
 
 官方步骤是注释 `/usr/bin/wifibt-util.sh` 中仅加载 `aic8800_fdrv.ko` 的 AIC8800DC 映射行，再重启。当前板端还有一条同 ID 的 `aic_load_fw.ko  aic8800_fdrv.ko` 后备映射；查询函数取首个匹配，`wifibt_module` 实际只返回第一模块，修改会改变 Wi-Fi 的初始化路径。不能在唯一连接为 Wi-Fi 时直接应用该改动并重启。先接通 USB 有线网络或串口恢复通路，再核对模式切换后的经典发现、配对、A2DP，以及 Wi-Fi 能否同时工作。当前 `usb0` 配有 `192.168.123.100/24`，需要主机侧 USB 数据连接和同网段地址；链路未接通时该地址不可用。
 
-建立串口恢复通路后，已按官方步骤注释映射并重启：可发现 EDIFIER S1000MKⅡ、配对并通过 BlueALSA 播放测试音，实际发声尚待用户确认。板端 Rockchip BlueZ 的 `Connect` / `Disconnect` 比附带客户端额外要求 `ADDR_TYPE`，音频使用 `ConnectProfile(Audio Sink)` 已连接成功。随后热加载 Wi-Fi 驱动虽出现 `wlan0`，蓝牙连接稍后断开且重连超时；热卸载后尚未重启复测。完整交接、当前模式与恢复命令见 [蓝牙实机验证交接](../../src/references/bluetooth-handoff.md)。
+同日建立串口恢复通路后，按官方步骤注释映射并重启：可发现 EDIFIER S1000MKⅡ、配对并通过 BlueALSA 播放测试音，实际发声未确认。板端 Rockchip BlueZ 的 `Connect` / `Disconnect` 比附带客户端额外要求 `ADDR_TYPE`，音频使用 `ConnectProfile(Audio Sink)` 连接成功。随后热加载 Wi-Fi 驱动虽出现 `wlan0`，蓝牙连接稍后断开且重连超时；当次未完成重启复测。此为历史验证范围，不代表当前设备模式；应用侧兼容实现及限制见 [硬件适配基线](../../src/references/hardware-adaptation.md#网络时间及适配边界)。
 
 恢复原模式时还原该映射行并重启；不要删除用户的 Wi-Fi 凭据、蓝牙配对记录或替换整个系统镜像。尚未验证本 SDK 的 USB 无线方案能在当前网络配置下同时保持 Wi-Fi 和经典蓝牙音频；SDIO 的固件及其他 AIC 型号的补丁不能直接替换到本板 USB 模块。

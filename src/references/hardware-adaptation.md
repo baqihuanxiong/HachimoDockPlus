@@ -11,7 +11,7 @@
 | SDK | `Luckfox_Lyra_SDK_202610`，板级配置 `luckfox_lyra_zero-w_buildroot_spinand_defconfig` |
 | 构建 | Docker；Go 1.25.11；Debian Bookworm ARM hard-float 工具链 |
 | UI | LVGL v9.3.0，固定提交及补丁由 [`prepare-lvgl.sh`](../tools/prepare-lvgl.sh) 校验和应用 |
-| 调试连接 | 当前常用 `root@192.168.4.202`，执行前确认地址及身份，不把 IP 当成硬件常量 |
+| 调试连接 | 使用实际 SSH 地址，执行前确认设备身份；IP 不属于硬件基线 |
 | 安装与服务 | `/opt/hachimodock`；`/etc/init.d/S99hachimodock`；日志 `/var/log/hachimodock.log` |
 
 普通应用开发只构建和部署用户态程序。保持既有 DSI、触摸、USB、Wi-Fi、蓝牙及 SSH 适配；不要因新增应用重刷 boot、替换内核或修改设备树。确需板级变更时单独按 `board/` 的流程验证与保留恢复手段。应用部署的“无备份”约定只针对旧应用 `releases/`。
@@ -64,6 +64,8 @@ ADS1015 使用 `/tmp/hachimodock-ads1015.lock`，INA226 读取使用 `/dev/i2c-2
 
 电池参数为 10 mΩ 采样电阻、0.25 mA 电流 LSB，采样后恢复原配置与校准；放电为正、充电为负。公共监视器约每 3 秒采样。电量百分比只是单节锂电池电压粗估，未完成电芯标定，不用于充电保护或精确续航预测。IP5306 `0x75` 是原理图中的预留资源，目前没有对应的应用服务实现。
 
+显示估算使用 3.4 / 3.5 / 3.6 / 3.7 / 3.8 / 3.9 / 4.0 / 4.1 / 4.2 V 对应 0 / 5 / 10 / 20 / 40 / 60 / 80 / 90 / 100%，区间线性插值，见 [`battery/level.go`](../internal/platform/battery/level.go)。图标按 ≥20% 绿色、10～19% 橙色、<10% 红色显示；充电电流低于 −5 mA 时显示闪电，读取失败或电压异常时显示未知状态。
+
 ## 音频、功放和全局音量
 
 | 链路 | 格式 / 约束 |
@@ -78,11 +80,11 @@ ADS1015 使用 `/tmp/hachimodock-ads1015.lock`，INA226 读取使用 `/dev/i2c-2
 
 内置扬声器播放前开启 GPIO12 功放，S/PDIF 使用 GPIO13 使能，蓝牙保持两者关闭。完成、失败、取消与离开页面均关闭物理输出、回收 aplay / FFmpeg、关闭网络流。共享播放锁只作用于同一应用进程，独立测试程序仍需与正常播放互斥。板载 FFmpeg 未启用 HTTPS，音乐服务已通过仅绑定回环地址的 Go HTTP 桥解决输入问题，其他音源应复用或明确适配。
 
-[USB 音频文档](../../board/lyra-zero-w/usb-audio.md) 保留了初期混音器测试档位；其中“应用尚未自动控制功放 / 上限”的历史描述，不代表当前 `platform/audio` 的行为。当前代码已自动控制两者。部分长文本 TTS 曾独立复现流错误或空音频，验收时应区分服务失败和本地声卡失败，不能只凭 HTTP 状态或 aplay 进程判断声音正确。
+[USB 音频文档](../../board/lyra-zero-w/usb-audio.md) 保留了驱动安装与初期混音器测试记录；当前 `platform/audio` 已自动控制功放和音量上限。部分长文本 TTS 曾独立复现流错误或空音频，验收时应区分服务失败和本地声卡失败，不能只凭 HTTP 状态或 aplay 进程判断声音正确。
 
 ## 网络、时间及适配边界
 
-Wi-Fi 复用 `/var/run/wpa_supplicant/wlan0`、系统 DHCP 和既有持久化配置。蓝牙当前支持无需输入 PIN 的配对及常用设备管理，没有实现键盘 PIN 交互。蓝牙音频路由通过 BlueALSA A2DP source 接入，服务与输出选择见 [音频配置](configuration-sharing.md#资源文件与音频输出)。Zero W 在关闭默认 Wi-Fi 初始化的经典模式下已发现 S1000MKⅡ、配对并完成软件侧 A2DP 测试，实际发声和 Wi-Fi 共存尚未验收，BlueZ 接口兼容修复尚未部署。模式限制见 [板级无线说明](../../board/lyra-zero-w/wifi.md#经典蓝牙音频与默认-ble-模式)，当前设备状态和后续步骤见 [蓝牙验证交接](bluetooth-handoff.md)。电池 / 无线采集由公共监视器管理，应用页面不要再启动一套轮询。
+Wi-Fi 复用 `/var/run/wpa_supplicant/wlan0`、系统 DHCP 和既有持久化配置。蓝牙当前支持无需输入 PIN 的配对及常用设备管理，没有实现键盘 PIN 交互。蓝牙音频路由通过 BlueALSA A2DP source 接入，服务与输出选择见 [音频配置](configuration-sharing.md#资源文件与音频输出)。代码已包含 [`platform/bluez`](../internal/platform/bluez/) 的 Rockchip 接口兼容处理；历史实测仅确认经典模式的发现、配对和软件侧 A2DP，实际发声及 Wi-Fi 共存仍未验收，模式限制见 [板级无线说明](../../board/lyra-zero-w/wifi.md#经典蓝牙音频与默认-ble-模式)。不由旧记录推断当前设备模式或部署状态。电池 / 无线采集由公共监视器管理，应用页面不要再启动一套轮询。
 
 重启后时间可能回到 1970 年，先确认 SNTP 成功再判断 HTTPS / WSS 证书错误。`DOCK_SYNC_TIME=1` 的重试不应阻塞界面；显示时区由 `ui.timezone` 控制。测试报告同时记录主机和板端时间，不能直接把未对时的板端日志当作准确日期。
 

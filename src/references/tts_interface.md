@@ -1,8 +1,7 @@
 # CosyVoice3 语音合成接口与客户端示例
 
-本文对应当前部署的 `Fun-CosyVoice3-0.5B-2512`，根据 `deployment.json`、运行容器的 FastAPI 路由及 `verify.py` 整理。2026-10-17 核对 `/health` 返回 200；部署和既有验收边界见 `AGENTS.md`。
+本文记录 2026-10-17 核对的 `Fun-CosyVoice3-0.5B-2512` 部署接口，根据服务仓库的 `deployment.json`、FastAPI 路由及 `verify.py` 整理，不代表端点当前可用性。文中的部署文件、容器及 `AGENTS.md` 均属于外部服务环境；本项目客户端见 [`internal/speech/tts.go`](../internal/speech/tts.go)，应用接入与诊断见 [PicoClaw](picoclaw.md)。
 
-文中 `deployment.json`、验证脚本和 `AGENTS.md` 属于语音服务部署仓库，本项目仅保留接口参考。
 ## 1. 服务入口与鉴权
 
 | 项目 | 当前配置 |

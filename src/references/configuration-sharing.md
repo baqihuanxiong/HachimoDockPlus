@@ -21,10 +21,10 @@
 "app_order": ["music", "picoclaw", "settings"]
 ```
 
-这会按“网易云音乐 → PicoClaw → 设置”排列，位置为左上 → 右上 → 左下 → 右下，满四个进入下一页。当前内置组件 ID 为 `picoclaw`、`settings`、`music`，使用 ID 而不是中文标题。
+这会优先按“网易云音乐 → PicoClaw → 设置”排列，位置为左上 → 右上 → 左下 → 右下，满四个进入下一页。内置组件 ID 见 [项目组件表](../README.md)，使用 ID 而不是中文标题。
 
 - 按数组顺序优先放置列出的组件；只填 `["music"]` 也可以，其余组件按默认注册顺序追加，不会隐藏组件。
-- 省略 `app_order` 或设置 `[]` 使用默认顺序（当前为 PicoClaw → 设置 → 网易云音乐）。新增组件自动追加。
+- 省略 `app_order` 或设置 `[]` 使用 [`bootstrap/apps.go`](../internal/bootstrap/apps.go) 中的默认注册顺序。新增组件自动纳入目录。
 - 重复 ID、未注册的 ID 或错误的数据类型会显示校验错误，保留原顺序且不重启。移除组件时也要从此数组删除其 ID。
 - 保存后点击设置 → 系统 → 应用配置并重启。无需重新编译或部署程序。不要覆盖 `ui` 中原有字体、时区、触摸和摇杆设置。
 
@@ -60,7 +60,7 @@ Samba 与 Go 程序独立，应用重启期间共享继续可用。关闭共享�
 
 ## 新组件与校验
 
-应用仍在自己的 `config.go` 中定义 schema 和校验。`internal/bootstrap/system.go` 负责重启前的组合校验：公共 JSON / 组件排序 / 字体 / 设备 / 时区，以及已配置的 PicoClaw 服务、密钥和参考音频。新增需要重启生效的组件时，把其配置校验接入此处，不在通用系统服务中导入应用包。
+应用仍在自己的 `config.go` 中定义 schema 和校验。`internal/bootstrap/system.go` 负责重启前的组合校验：公共 JSON / 组件排序 / 字体 / 设备 / 时区，以及已配置的 PicoClaw、NewAPI 参数和所需密钥、资源。新增需要重启生效的组件时，把其配置校验接入此处，不在通用系统服务中导入应用包。
 
 `config.Parse(data, installedBase)` 允许验证候选文件且保持安装路径语义；密钥校验使用待提交快照中的 `secrets`。校验不应拨号远程服务或发起付费请求，服务可用性由组件打开后的正常错误处理及实机测试验证。
 
@@ -110,4 +110,4 @@ PicoClaw 重启前会校验 runtime JSON、工具参数、MCP 传输地址、AGE
 
 名称与类型的解析依据 [BlueZ Device API](https://bluez.readthedocs.io/en/latest/device-api/)，发现行为见 [Adapter API](https://bluez.readthedocs.io/en/latest/adapter-api/)；音频输出接入方式见 [BlueALSA](https://github.com/arkq/bluez-alsa)。真实蓝牙耳机出声、S/PDIF 接收器与 Windows / macOS 共享客户端仍需在对应设备上验收。
 
-本次本地验证覆盖全量 Go 测试、`go vet`、相关包竞态检查、LVGL 原生界面和 native / ARM 构建。板端验证了 S/PDIF 的单声道格式转换，以及 BlueALSA 的启动、D-Bus 就绪、Audio Source 注册、重复启动和停止；测试后恢复原有服务状态。已部署板端并验证系统页的输出切换、音量调整和 JSON 保存；实机蓝牙扫描持续枚举设备，返回首页后停止发现并回收扫描进程。通过系统页完成一次包含 assets 的配置应用重启，配置代次和 Go PID 均更新，SMB 持续运行；音量及其他配置保持不变。实际耳机和数字接收器的声音仍需试听验收。
+2026-11-15 验证记录：全量 Go 测试、`go vet`、相关包竞态检查、LVGL 原生界面及 native / ARM 构建通过。板端验证了 S/PDIF 的单声道格式转换，以及 BlueALSA 启停、D-Bus 就绪、Audio Source 注册；系统页输出切换、音量和 JSON 保存通过，离开后停止蓝牙发现并回收扫描进程。包含 assets 的配置应用使配置代次与 Go PID 更新，SMB 持续运行，原有音量与其他配置保留。实际耳机和数字接收器的声音尚未试听验收。

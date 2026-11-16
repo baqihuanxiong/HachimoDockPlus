@@ -1,44 +1,45 @@
-# 应用组件开发参考
+# 开发参考索引
 
-本目录是后续应用组件开发的统一入口。基线整理于 **2026-11-15**，适用于当前 Lyra Zero W / RK3506B、Go + LVGL 单进程应用框架。
+本目录维护 Go + LVGL 应用层的开发约定、组件用法与验证方法。项目概览、构建和部署命令见 [src/README.md](../README.md)；当前硬件基线为 Lyra Zero W / RK3506B。
 
-## 阅读顺序
+## 按任务阅读
 
-1. [硬件适配基线](hardware-adaptation.md)：设备路径、引脚、共享资源、可复用接口和已验证限制。
-2. [应用组件开发规范](app-development.md)：依赖边界、生命周期、配置、页面、主题、性能及交付流程。
-3. [实机闭环测试](board-validation.md)：构建、部署、输入、截图、实际副作用、资源释放和复测。
-4. [SMB 配置共享](configuration-sharing.md)：远程编辑低频配置、共享账号、校验与程序重启。
-5. [实机测试报告模板](templates/board-test-report.md)：每次交付填写版本、步骤、预期、证据及结论。
+| 任务 | 参考 |
+|---|---|
+| 新增或修改应用组件 | [应用开发规范](app-development.md)：依赖边界、生命周期、配置、页面、主题和性能 |
+| 使用硬件或更换开发板 | [硬件适配基线](hardware-adaptation.md)：设备、引脚、共享资源和已知限制 |
+| 验证与交付 | [实机闭环测试](board-validation.md)、[报告模板](templates/board-test-report.md) |
+| 编辑配置、密钥与资源 | [SMB 配置共享](configuration-sharing.md)：安装、原子应用、音频输出和校验 |
+| 截图或注入触摸事件 | [主机端示例](examples/board_ui_probe.py)，使用方式与验证范围见[测试流程](board-validation.md#页面与触摸) |
 
-当前未完成的板端验证见 [蓝牙实机验证交接](bluetooth-handoff.md)，记录串口迁移时的设备状态、待部署修复及恢复步骤。
+新增组件建议依次确认硬件与验收用例、实现应用及页面、执行实机闭环。依赖、接口与默认值以当前代码为准，文档和代码不一致时核对实现及实测证据后更新；更换板型或固件后重新确认硬件基线。
 
-开发一个组件时，先确定硬件与验收用例，再实现业务和页面，最后执行实机闭环；目录能打开或服务进程存活都不能单独证明功能完成。
+## 组件与协议
 
-## 文档与代码分工
+| 主题 | 参考 |
+|---|---|
+| 组件中心、外观与无线设置 | [设置与公共界面](settings.md) |
+| PicoClaw 对话 | [使用与配置](picoclaw.md)、[工具 / 技能 / CLI / MCP](picoclaw-extensions.md)、[可选米家 CLI](../extensions/mijia/README.md) |
+| 语音服务 | [FunASR 协议](asr_interface.md)、[CosyVoice 协议](tts_interface.md)；这些是既有服务部署的接口记录，可用性需另行验证 |
+| 网易云音乐 | [操作、实现与验证](music.md) |
+| NewAPI 监控 | [配置、统计口径与余额重置](newapi-monitor.md) |
+
+## 代码与板级资料
 
 | 位置 | 内容 |
 |---|---|
-| 本目录 | 当前应用开发约定、硬件使用方式和测试流程 |
 | [`internal/core`](../internal/core/) | 应用接口、事件和生命周期的实际契约 |
-| [`internal/bootstrap/apps.go`](../internal/bootstrap/apps.go) | 应用工厂、共享服务、页面和终端命令的装配入口 |
+| [`internal/bootstrap/apps.go`](../internal/bootstrap/apps.go) | 应用工厂、共享服务、页面与终端命令装配 |
 | [`internal/platform`](../internal/platform/) | 可复用的硬件、网络及音频能力 |
-| [`board/lyra-zero-w`](../../board/lyra-zero-w/README.md) | 设备树、固件、内核模块及板级适配原始记录 |
-| [`hardware`](../../hardware/Pinout.md) | 原理图与物理引脚，部分屏幕设计属于历史方案 |
-| [`sandbox`](../../sandbox/README.md) | 独立硬件试验、测量脚本和历史验证记录 |
+| [`board/lyra-zero-w`](../../board/lyra-zero-w/README.md) | 设备树、固件、内核模块及板级适配 |
+| [`hardware`](../../hardware/Pinout.md) / [`sandbox`](../../sandbox/README.md) | 原理图、独立试验与历史验证；旧参数不自动等于当前默认值 |
 | [`patches`](../patches/README.md) | 固定版本 LVGL 的本地补丁及维护说明 |
-| [`examples/board_ui_probe.py`](examples/board_ui_probe.py) | 主机端截图、触摸点击和滑动示例，不安装到应用中 |
 
-发现文档与实现不一致时，核对代码、当前设备枚举和实测证据后更新相应文档；不要把旧试验参数直接当作当前应用默认值。修改板型、固件或设备后，重新确认本目录的硬件基线。
+## 验证记录
 
-## 既有协议参考
+记录对应当次产物与环境，不能视为当前板端状态或新版本的验收结果。原始证据保存在被 Git 忽略的 `build/`，仓库只保留脱敏总结。
 
-- [FunASR 接口](asr_interface.md)
-- [CosyVoice 接口](tts_interface.md)
-- [网易云音乐实现与验证](music.md)
-- [NewAPI 网关监控、上游套餐余额与用户余额重置](newapi-monitor.md)
-- [PicoClaw 通用工具、技能、CLI 与 MCP](picoclaw-extensions.md)
-- [独立米家 CLI](../extensions/mijia/README.md)
+- [NewAPI 看板与余额重置验证（2026-11-15）](reports/newapi-dashboard-2026-11-15.md)
+- [米家属性读取修复（2026-11-15）](reports/mijia-properties-2026-11-15.md)
 
-服务协议与实际端点的可用性分别验证。不能把 HTTP 成功、流连接建立或返回了部分内容，等同于完整文本、完整音频和最终播放均成功。
-
-`references/secret.md` 是本地、被 Git 忽略的配置导入来源，不属于可公开的开发规范。文档、示例和测试报告不得复制其中的凭据，也不要提交 `.local/`、`build/`、`.cache/` 或包含对话、账号信息的原始采集文件。
+`secret.md` 是本地配置导入来源，不属于公开文档。凭据、对话、账号信息与原始截图不进入文档或仓库。
