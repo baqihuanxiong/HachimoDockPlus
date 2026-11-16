@@ -13,6 +13,7 @@ import (
 	app "hachimodockplus/internal/apps/picoclaw"
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/platform/system"
+	"hachimodockplus/internal/speech"
 )
 
 func systemServices(installed config.Config) *system.Manager {
@@ -83,9 +84,11 @@ func systemServices(installed config.Config) *system.Manager {
 					return fmt.Errorf("%s：%w", name, err)
 				}
 			}
-			voice, err := os.Stat(system.CandidatePath(base, filepath.Dir(secretDir), pc.TTS.PromptWAV))
-			if err != nil || !voice.Mode().IsRegular() || voice.Size() < 44 || voice.Size() > 4<<20 {
-				return errors.New("语音合成参考音频无效")
+			if pc.TTS.Provider != speech.ProviderVolcengine {
+				voice, err := os.Stat(system.CandidatePath(base, filepath.Dir(secretDir), pc.TTS.PromptWAV))
+				if err != nil || !voice.Mode().IsRegular() || voice.Size() < 44 || voice.Size() > 4<<20 {
+					return errors.New("语音合成参考音频无效")
+				}
 			}
 		}
 		return nil

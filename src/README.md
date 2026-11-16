@@ -6,7 +6,7 @@ HachimoDockPlus 的 Linux 应用层，当前运行于 **Lyra Zero W / RK3506B（
 
 | 组件 ID | 功能与参考 |
 |---|---|
-| `picoclaw` | [文字与按键语音对话](references/picoclaw.md)，支持[技能、CLI 和 MCP 扩展](references/picoclaw-extensions.md) |
+| `picoclaw` | [文字与按键语音对话](references/picoclaw.md)，支持[技能、CLI 和 MCP 扩展](references/picoclaw-extensions.md)及[豆包语音](references/doubao-voice.md) |
 | `music` | [网易云音乐](references/music.md)：短信登录、歌单、封面、歌词与播放控制 |
 | `newapi-monitor` | [NewAPI 监控](references/newapi-monitor.md)：用量看板、上游余额与用户余额重置 |
 | `settings` | [设置与公共界面](references/settings.md)：无线、外观、音频与配置管理 |

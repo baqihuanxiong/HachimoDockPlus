@@ -70,8 +70,8 @@ func NewPicoClawServices(root config.Config) (*PicoClawServices, error) {
 	}
 	return &PicoClawServices{
 		Agent: agent,
-		ASR:   speech.ASR{URL: cfg.ASR.URL, Key: asrKey, Language: cfg.ASR.Language},
-		TTS:   speech.TTS{URL: cfg.TTS.URL, Key: ttsKey, Mode: cfg.TTS.Mode, PromptWAV: cfg.TTS.PromptWAV, PromptText: cfg.TTS.PromptText, Instruction: cfg.TTS.Instruction},
+		ASR:   speech.ASR{URL: cfg.ASR.URL, Key: asrKey, Language: cfg.ASR.Language, Provider: cfg.ASR.Provider, ResourceID: cfg.ASR.ResourceID},
+		TTS:   speech.TTS{URL: cfg.TTS.URL, Key: ttsKey, Mode: cfg.TTS.Mode, PromptWAV: cfg.TTS.PromptWAV, PromptText: cfg.TTS.PromptText, Instruction: cfg.TTS.Instruction, Provider: cfg.TTS.Provider, ResourceID: cfg.TTS.ResourceID, Speaker: cfg.TTS.Speaker, SpeechRate: cfg.TTS.SpeechRate},
 		Audio: audio.ALSA{CaptureDevice: root.Audio.CaptureDevice, PlaybackDevice: root.Audio.PlaybackDevice},
 	}, nil
 }

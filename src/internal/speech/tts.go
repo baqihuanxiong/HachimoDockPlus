@@ -15,10 +15,18 @@ import (
 
 type TTS struct {
 	URL, Key, Mode, PromptWAV, PromptText, Instruction string
+	Provider, ResourceID, Speaker                      string
+	SpeechRate                                         int
 	Client                                             *http.Client
 }
 
 func (t TTS) Ready() error {
+	if t.Provider == ProviderVolcengine {
+		if t.Key == "" || t.Speaker == "" || t.ResourceID == "" {
+			return errors.New("请配置豆包 TTS 密钥、资源 ID 和音色")
+		}
+		return nil
+	}
 	s, err := os.Stat(t.PromptWAV)
 	if err != nil || !s.Mode().IsRegular() || s.Size() < 44 || s.Size() > 4<<20 {
 		return errors.New("请配置有效的 TTS 参考 WAV 音频（最大 4 MiB）")
@@ -28,6 +36,9 @@ func (t TTS) Ready() error {
 
 // Synthesize returns streaming, sample-aligned 24kHz PCM, never a WAV file.
 func (t TTS) Synthesize(ctx context.Context, text string) (io.ReadCloser, error) {
+	if t.Provider == ProviderVolcengine {
+		return t.synthesizeVolcengine(ctx, text)
+	}
 	if err := t.Ready(); err != nil {
 		return nil, err
 	}
@@ -121,6 +132,10 @@ func (p *pcmBody) Read(b []byte) (int, error) {
 		if n > 0 {
 			err = nil
 		}
+	}
+	if err != nil && err != io.EOF {
+		p.terminal = err
+		n &= ^1
 	}
 	p.bytes += n
 	return n, err

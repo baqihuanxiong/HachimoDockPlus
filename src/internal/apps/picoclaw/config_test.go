@@ -44,3 +44,32 @@ func TestAppConfigPathsValidationAndLegacyWorkspace(t *testing.T) {
 		}
 	}
 }
+
+func TestVolcengineConfigDefaultsAndMixedProviders(t *testing.T) {
+	for _, asr := range []string{`{"provider":"volcengine","key_file":"speech.key"}`, `{"url":"wss://asr.example","key_file":"asr.key"}`} {
+		raw := `{"data_dir":"data","apps":{"picoclaw":{"llm":{"url":"https://llm.example/v1","model":"model","key_file":"llm.key"},"asr":` + asr + `,"tts":{"provider":"volcengine","key_file":"speech.key"}}}}`
+		root, err := config.Parse([]byte(raw), t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := LoadConfig(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.TTS.Speaker != "zh_female_vv_uranus_bigtts" || cfg.TTS.ResourceID != "seed-tts-2.0" || cfg.TTS.PromptWAV != "" {
+			t.Fatal("bad Doubao defaults")
+		}
+		if cfg.ASR.Provider == "volcengine" && (cfg.ASR.ResourceID != "volc.seedasr.sauc.duration" || !strings.HasPrefix(cfg.ASR.URL, "wss://openspeech.bytedance.com/")) {
+			t.Fatal("bad ASR defaults")
+		}
+		for _, bad := range []string{strings.Replace(raw, `"provider":"volcengine"`, `"provider":"invalid"`, 1), strings.Replace(raw, `"tts":{`, `"tts":{"speech_rate":101,`, 1), strings.Replace(raw, `"tts":{`, `"tts":{"resource_id":"bad\r\nheader",`, 1)} {
+			r, e := config.Parse([]byte(bad), t.TempDir())
+			if e != nil {
+				t.Fatal(e)
+			}
+			if _, e = LoadConfig(r); e == nil {
+				t.Fatal("bad provider configuration accepted")
+			}
+		}
+	}
+}

@@ -1,5 +1,7 @@
 # Fun-ASR-Nano 实时语音识别接口与客户端示例
 
+本页描述自定义服务；新增火山引擎豆包语音的配置与协议见 [豆包语音](doubao-voice.md)。
+
 本文记录 2026-10-17 核对的 `Fun-ASR-Nano-2512` 部署接口，根据服务仓库的 `deployment.json`、`serve_ws.py`、`funasr.bin.realtime_ws` 与 `verify.py` 整理，不代表端点当前可用性。文中的部署文件、容器及 `AGENTS.md` 均属于外部服务环境；本项目客户端见 [`internal/speech/asr.go`](../internal/speech/asr.go)，应用接入与诊断见 [PicoClaw](picoclaw.md)。
 
 ## 1. 服务入口与鉴权

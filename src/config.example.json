@@ -40,11 +40,13 @@
         "key_file": ".local/secrets/llm.key"
       },
       "asr": {
+        "provider": "custom",
         "url": "wss://your-asr-service.example",
         "key_file": ".local/secrets/asr.key",
         "language": "中文"
       },
       "tts": {
+        "provider": "custom",
         "url": "https://your-tts-service.example",
         "key_file": ".local/secrets/tts.key",
         "mode": "instruct2",

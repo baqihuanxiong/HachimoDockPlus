@@ -2,8 +2,10 @@ package picoclaw
 
 import (
 	"errors"
+	"strings"
 
 	"hachimodockplus/internal/config"
+	"hachimodockplus/internal/speech"
 )
 
 type Config struct {
@@ -15,7 +17,9 @@ type Config struct {
 	} `json:"llm"`
 	ASR struct {
 		config.Service
-		Language string `json:"language"`
+		Language   string `json:"language"`
+		Provider   string `json:"provider,omitempty"`
+		ResourceID string `json:"resource_id,omitempty"`
 	} `json:"asr"`
 	TTS struct {
 		config.Service
@@ -23,6 +27,10 @@ type Config struct {
 		PromptWAV   string `json:"prompt_wav"`
 		PromptText  string `json:"prompt_text"`
 		Instruction string `json:"instruction"`
+		Provider    string `json:"provider,omitempty"`
+		ResourceID  string `json:"resource_id,omitempty"`
+		Speaker     string `json:"speaker,omitempty"`
+		SpeechRate  int    `json:"speech_rate,omitempty"`
 	} `json:"tts"`
 }
 
@@ -48,6 +56,44 @@ func LoadConfig(root config.Config) (Config, error) {
 	if c.LLM.Model == "" {
 		return c, errors.New("缺少 llm.model")
 	}
+	if c.ASR.Provider == "" {
+		c.ASR.Provider = "custom"
+	}
+	if c.TTS.Provider == "" {
+		c.TTS.Provider = "custom"
+	}
+	for _, provider := range []string{c.ASR.Provider, c.TTS.Provider} {
+		if provider != "custom" && provider != speech.ProviderVolcengine {
+			return c, errors.New("语音 provider 必须为 custom 或 volcengine")
+		}
+	}
+	if c.ASR.Provider == speech.ProviderVolcengine {
+		if c.ASR.URL == "" {
+			c.ASR.URL = speech.VolcengineASRURL
+		}
+		if c.ASR.ResourceID == "" {
+			c.ASR.ResourceID = speech.VolcengineASRResource
+		}
+	}
+	if c.TTS.Provider == speech.ProviderVolcengine {
+		if c.TTS.URL == "" {
+			c.TTS.URL = speech.VolcengineTTSURL
+		}
+		if c.TTS.ResourceID == "" {
+			c.TTS.ResourceID = speech.VolcengineTTSResource
+		}
+		if c.TTS.Speaker == "" {
+			c.TTS.Speaker = speech.VolcengineSpeaker
+		}
+		if c.TTS.SpeechRate < -50 || c.TTS.SpeechRate > 100 {
+			return c, errors.New("tts.speech_rate 必须为 -50～100")
+		}
+	}
+	for _, id := range []string{c.ASR.ResourceID, c.TTS.ResourceID} {
+		if strings.ContainsAny(id, "\r\n") {
+			return c, errors.New("语音资源 ID 不能包含换行")
+		}
+	}
 	for name, s := range map[string]config.Service{"llm": c.LLM.Service, "asr": c.ASR.Service, "tts": c.TTS.Service} {
 		if err := s.Validate(name, name == "asr"); err != nil {
 			return c, err
@@ -55,6 +101,9 @@ func LoadConfig(root config.Config) (Config, error) {
 	}
 	if c.ASR.Language == "" {
 		c.ASR.Language = "中文"
+	}
+	if c.TTS.Provider == speech.ProviderVolcengine {
+		return c, nil
 	}
 	if c.TTS.Mode == "" {
 		c.TTS.Mode = "instruct2"

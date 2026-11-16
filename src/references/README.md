@@ -20,7 +20,7 @@
 |---|---|
 | 组件中心、外观与无线设置 | [设置与公共界面](settings.md) |
 | PicoClaw 对话 | [使用与配置](picoclaw.md)、[工具 / 技能 / CLI / MCP](picoclaw-extensions.md)、[可选米家 CLI](../extensions/mijia/README.md) |
-| 语音服务 | [FunASR 协议](asr_interface.md)、[CosyVoice 协议](tts_interface.md)；这些是既有服务部署的接口记录，可用性需另行验证 |
+| 语音服务 | [FunASR 协议](asr_interface.md)、[CosyVoice 协议](tts_interface.md)、[豆包语音](doubao-voice.md)；自定义服务文档记录既有部署接口，可用性需另行验证 |
 | 网易云音乐 | [操作、实现与验证](music.md) |
 | NewAPI 监控 | [配置、统计口径与余额重置](newapi-monitor.md) |
 
@@ -39,6 +39,7 @@
 
 记录对应当次产物与环境，不能视为当前板端状态或新版本的验收结果。原始证据保存在被 Git 忽略的 `build/`，仓库只保留脱敏总结。
 
+- [豆包语音实机验证（2026-11-16）](reports/doubao-voice-2026-11-16.md)
 - [NewAPI 看板与余额重置验证（2026-11-15）](reports/newapi-dashboard-2026-11-15.md)
 - [米家属性读取修复（2026-11-15）](reports/mijia-properties-2026-11-15.md)
 

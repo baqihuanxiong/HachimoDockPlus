@@ -1,5 +1,7 @@
 # CosyVoice3 语音合成接口与客户端示例
 
+本页描述自定义服务；新增火山引擎豆包语音的配置与协议见 [豆包语音](doubao-voice.md)。
+
 本文记录 2026-10-17 核对的 `Fun-CosyVoice3-0.5B-2512` 部署接口，根据服务仓库的 `deployment.json`、FastAPI 路由及 `verify.py` 整理，不代表端点当前可用性。文中的部署文件、容器及 `AGENTS.md` 均属于外部服务环境；本项目客户端见 [`internal/speech/tts.go`](../internal/speech/tts.go)，应用接入与诊断见 [PicoClaw](picoclaw.md)。
 
 ## 1. 服务入口与鉴权

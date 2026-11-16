@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type ASR struct{ URL, Key, Language string }
+type ASR struct{ URL, Key, Language, Provider, ResourceID string }
 
 type Transcript struct {
 	Event     string `json:"event"`
@@ -37,6 +37,9 @@ func (r Transcript) Text(preview bool) string {
 // Transcribe consumes live PCM16 LE, mono, 16kHz. The caller closes/stops its
 // capture to signal EOF; only a confirmed final snapshot may reach the agent.
 func (a ASR) Transcribe(ctx context.Context, pcm io.Reader, update func(string)) (string, error) {
+	if a.Provider == ProviderVolcengine {
+		return a.transcribeVolcengine(ctx, pcm, update)
+	}
 	// A live capture must be interrupted even if the server closes early.
 	if closer, ok := pcm.(io.Closer); ok {
 		defer closer.Close()
