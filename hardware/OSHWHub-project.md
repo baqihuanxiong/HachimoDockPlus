@@ -11,7 +11,7 @@
 > - **SPDIF（S/PDIF）音频输出尚未调通。**
 > - **移除 Type-C 外部供电、转为电池供电时，会出现瞬间断电，供电切换缺陷尚未解决。**
 
-本页侧重硬件参数、电路原理与组装流程；项目整体进度、软件构建与开发入口见 [项目 README](https://github.com/baqihuanxiong/HachimoDockPlus/blob/master/README.md)。
+本页侧重硬件参数、电路原理与组装流程；项目整体进度、软件构建与开发入口见 [项目 README](https://github.com/baqihuanxiong/MyHachimoDock/blob/master/README.md)。
 
 ## 项目功能
 
@@ -63,7 +63,7 @@
 | 底板 | PCB | 1 片 | ￥0 | 嘉立创免费打样 |
 | 元器件 | BOM | 1 套 | ￥170 | 价格来自立创商城，PAM8403DR-H、CM108B、ADS1015IDGSR、IP5306 芯片可以在淘宝买省几十块 |
 | 钢网 | 钢网 | 1 张 | ￥20 | 随嘉立创 PCB 一起下单 |
-| 外壳 | [改版外壳](https://github.com/baqihuanxiong/HachimoDockPlus/tree/master/hardware/models/) | 1 套 | ￥0 | 可自行打印或找代工厂打印，模型用 codex 接 blender 改过，需打印[改版底壳](https://github.com/baqihuanxiong/HachimoDockPlus/tree/master/hardware/models/lower-modified.stl)，其他可以用官方原版模型 |
+| 外壳 | [改版外壳](https://github.com/baqihuanxiong/MyHachimoDock/tree/master/hardware/models/) | 1 套 | ￥0 | 可自行打印或找代工厂打印，模型用 codex 接 blender 改过，需打印[改版底壳](https://github.com/baqihuanxiong/MyHachimoDock/tree/master/hardware/models/lower-modified.stl)，其他可以用官方原版模型 |
 | 屏幕 | [2.8 英寸 480×640 IPS MIPI-DSI 显示屏](https://item.taobao.com/item.htm?id=674784446079) | 1 套 | ￥85 | 这个目前买不到，但社区有其他大佬魔改的屏幕 |
 | 电池 | [18650锂电池 3.7V 3400maH PH 接口](https://detail.tmall.com/item.htm?id=795700071122) | 1 个 | ￥28.9 | 淘宝购买 |
 | 扬声器 | [腔体喇叭 2030-8Ω2W-1.25](https://item.taobao.com/item.htm?id=986847812412) | 2 个 | ￥6.3 | 淘宝购买 |
@@ -76,13 +76,13 @@
 
 ## 软件代码
 
-项目源码与持续更新的开发文档：**[GitHub 仓库](https://github.com/baqihuanxiong/HachimoDockPlus)**。
+项目源码与持续更新的开发文档：**[GitHub 仓库](https://github.com/baqihuanxiong/MyHachimoDock)**。
 
 ## 来源与许可
 
-本项目为 HachimoDock 的个人改造版本。原创软件和文档按仓库 [MIT 许可证](https://github.com/baqihuanxiong/HachimoDockPlus/blob/master/LICENSE) 提供；硬件设计不自动适用该 MIT 许可证，其授权以平台发布页明确标注的许可及相关权利人的授权为准。
+本项目为 HachimoDock 的个人改造版本。原创软件和文档按仓库 [MIT 许可证](https://github.com/baqihuanxiong/MyHachimoDock/blob/master/LICENSE) 提供；硬件设计不自动适用该 MIT 许可证，其授权以平台发布页明确标注的许可及相关权利人的授权为准。
 
-HachimoDock 上游内容及派生部分、米家扩展和其他第三方内容保留各自许可，不因在本平台发布而改变。具体来源与适用范围见 [第三方许可说明](https://github.com/baqihuanxiong/HachimoDockPlus/blob/master/THIRD_PARTY_NOTICES.md)，不能将全部内容视为统一 MIT 授权。
+HachimoDock 上游内容及派生部分、米家扩展和其他第三方内容保留各自许可，不因在本平台发布而改变。具体来源与适用范围见 [第三方许可说明](https://github.com/baqihuanxiong/MyHachimoDock/blob/master/THIRD_PARTY_NOTICES.md)，不能将全部内容视为统一 MIT 授权。
 
 ## 致谢
 

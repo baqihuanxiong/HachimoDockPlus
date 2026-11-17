@@ -4,7 +4,7 @@
 
 将原方案的 ESP32-P4 主控替换为 **幸狐 Lyra Zero W / RK3506B**，以 **Go + LVGL** 构建应用，探索在一台带触屏、按键、摇杆和音频的小设备上运行 AI 对话、音乐与日常工具。本仓库整理定制底板资料、板级适配、应用源码和实机验证记录，供学习、改造与复刻参考。
 
-![HachimoDockPlus 开盖实物图](https://image.lceda.cn/oshwhub/pullImage/e02e67fac9d2493bb0f099f6c3163941.jpg)
+![MyHachimoDock 开盖实物图](https://image.lceda.cn/oshwhub/pullImage/e02e67fac9d2493bb0f099f6c3163941.jpg)
 
 > **开发中，尚未达到完整复刻交付状态。**
 >
@@ -41,15 +41,15 @@ HachimoDock 提供了桌面交互终端的创意与实现，本项目在此基�
 
 后续重点：完成两条音频输出链路的适配与验收，逐步评估官方功能迁移，并补齐硬件生产资料、装配说明及完整复刻记录。
 
-![HachimoDockPlus 应用界面总览](https://image.lceda.cn/oshwhub/pullImage/2991895663ea45efafa2c38242da0be7.png)
+![MyHachimoDock 应用界面总览](https://image.lceda.cn/oshwhub/pullImage/2991895663ea45efafa2c38242da0be7.png)
 
 ## 复刻与开发
 
 ### 1. 获取源码与上游参考
 
 ```sh
-git clone --recurse-submodules https://github.com/baqihuanxiong/HachimoDockPlus.git
-cd HachimoDockPlus
+git clone --recurse-submodules https://github.com/baqihuanxiong/MyHachimoDock.git
+cd MyHachimoDock
 
 # 已克隆仓库但未初始化上游参考时执行
 git submodule update --init --recursive
@@ -103,7 +103,7 @@ tools/dev.sh tools/build.sh arm
 
 ## 参与改进
 
-欢迎通过 [Issues](https://github.com/baqihuanxiong/HachimoDockPlus/issues) 提交复刻反馈、问题和功能建议，也欢迎提交文档、驱动适配与组件改进。硬件相关反馈请附开发板、底板 / 接线版本、固件基线、复现步骤和脱敏日志；适配贡献请说明实测范围与尚未验证的部分。
+欢迎通过 [Issues](https://github.com/baqihuanxiong/MyHachimoDock/issues) 提交复刻反馈、问题和功能建议，也欢迎提交文档、驱动适配与组件改进。硬件相关反馈请附开发板、底板 / 接线版本、固件基线、复现步骤和脱敏日志；适配贡献请说明实测范围与尚未验证的部分。
 
 ## 许可证
 

@@ -1,6 +1,6 @@
 # HachimoDock Go + LVGL
 
-HachimoDockPlus 的 Linux 应用层，当前运行于 **Lyra Zero W / RK3506B（ARMv7、Buildroot、glibc）**，使用 Go 处理业务与网络、LVGL 绘制 640×480 横屏界面。板级固件与驱动见 [板级说明](../board/lyra-zero-w/README.md)。
+MyHachimoDock 的 Linux 应用层，当前运行于 **Lyra Zero W / RK3506B（ARMv7、Buildroot、glibc）**，使用 Go 处理业务与网络、LVGL 绘制 640×480 横屏界面。板级固件与驱动见 [板级说明](../board/lyra-zero-w/README.md)。
 
 内置组件如下，操作、配置和限制在各自文档中维护：
 
