@@ -2,7 +2,9 @@
 
 基于 [HachimoDock](https://github.com/YizhengWw/HachimoDock) 项目进行软硬件个人定制的 Linux 桌面交互终端。
 
-将原方案的 ESP32-P4 主控替换为 **幸狐 Luckfox Lyra Zero W / RK3506B**，以 **Go + LVGL** 构建应用，探索在一台带触屏、按键、摇杆和音频的小设备上运行 AI 对话、音乐与日常工具。本仓库整理定制底板资料、板级适配、应用源码和实机验证记录，供学习、改造与复刻参考。
+将原方案的 ESP32-P4 主控替换为 **幸狐 Lyra Zero W / RK3506B**，以 **Go + LVGL** 构建应用，探索在一台带触屏、按键、摇杆和音频的小设备上运行 AI 对话、音乐与日常工具。本仓库整理定制底板资料、板级适配、应用源码和实机验证记录，供学习、改造与复刻参考。
+
+![HachimoDockPlus 开盖实物图](https://image.lceda.cn/oshwhub/pullImage/e02e67fac9d2493bb0f099f6c3163941.jpg)
 
 > **开发中，尚未达到完整复刻交付状态。**
 >
@@ -39,6 +41,8 @@ HachimoDock 提供了桌面交互终端的创意与实现，本项目在此基�
 
 后续重点：完成两条音频输出链路的适配与验收，逐步评估官方功能迁移，并补齐硬件生产资料、装配说明及完整复刻记录。
 
+![HachimoDockPlus 应用界面总览](https://image.lceda.cn/oshwhub/pullImage/2991895663ea45efafa2c38242da0be7.png)
+
 ## 复刻与开发
 
 ### 1. 获取源码与上游参考
@@ -58,6 +62,7 @@ git submodule update --init --recursive
 当前采用 Lyra Zero W / RK3506B、SPI NAND、Buildroot、Linux 6.1.99，SDK 基线为 `Luckfox_Lyra_SDK_202610`，应用使用 ARMv7 hard-float / glibc 工具链。
 
 - 硬件说明与组装：[立创开源硬件平台项目描述](hardware/OSHWHub-project.md) 汇总硬件参数、电路原理、装配流程与注意事项。
+- 平台项目：[OSHWHub 项目（审核中）](https://oshwhub.com/baqihuanxiong/project_zlqhfgdu?jspm=hub.zy.zp.gc1___hub.hm.zp&jlc_vid=FgcMAQAFQAAMVwADQgcLVAEHQ1VcVF1eT1RaVAJTQlAxVlNfQ1lWVFVST1BaUTtWKAkaExQVTU5BCBcOAAkbBUoFGAw%3D) · [嘉立创 EDA 工程](https://pro.lceda.cn/editor#id=8ad246e261224d39be3e1df2aaaf6821)。
 - 底板资料：[原理图](hardware/SCH_底板_2026-11-07.pdf)、[PCB 图](hardware/PCB_底板_2026-11-07.pdf)、[BOM](hardware/BOM_底板_2026-11-07.xlsx) 与 [引脚表](hardware/Pinout.md)。目前仓库主要提供 PDF、BOM 和参考资料，**尚未提供完整的可编辑 PCB 工程与 Gerber 生产文件**。
 - 板级准备：[Lyra Zero W 适配说明](board/lyra-zero-w/README.md) 与 [幸狐官方文档](https://wiki.luckfox.com/zh/Luckfox-Lyra/Luckfox-Lyra-Zero-W/)。本机 SDK、分区备份与固件产物不随 Git 分发，需要自行准备。
 - 接线核对：[硬件适配基线](src/references/hardware-adaptation.md) 汇总当前已验证的显示、输入、音频和电池接口。**当前屏幕使用 MIPI DSI；引脚表中的历史 SPI 屏分配不适用于此连接。**
