@@ -16,16 +16,21 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"log"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 	"unsafe"
 
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/pet"
 	"hachimodockplus/internal/platform/controls"
+	"hachimodockplus/internal/platform/display"
 	"hachimodockplus/internal/platform/status"
 	"hachimodockplus/internal/preferences"
+	"hachimodockplus/internal/ui/standby"
 )
 
 func withStrings(values []string, call func([]*C.char)) {
@@ -36,7 +41,7 @@ func withStrings(values []string, call func([]*C.char)) {
 	}
 	call(cs)
 }
-func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.Monitor, prefs *preferences.Store, preview string, pages ...Page) error {
+func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.Monitor, prefs *preferences.Store, companion *pet.Companion, preview string, startScreensaver bool, pages ...Page) error {
 	registered, err := validatePages(h.Snapshot().Applications, pages)
 	if err != nil {
 		return err
@@ -54,6 +59,21 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		return fmt.Errorf("LVGL 初始化失败（%d）：检查显示、触摸权限及字体文件", int(code))
 	}
 	defer C.dock_close()
+	var output standby.Power
+	if fb != "" {
+		power, powerErr := display.Open(fb)
+		if powerErr != nil {
+			log.Printf("显示待机不可用: %v", powerErr)
+		} else {
+			output = power
+			defer func() {
+				if err := power.Close(); err != nil {
+					log.Printf("恢复显示失败: %v", err)
+				}
+			}()
+		}
+	}
+	standbyControl := standby.New(output, time.Now())
 	var hardware <-chan controls.Event
 	if preview == "" && !cfg.UI.Controls.Disabled {
 		var stopControls func()
@@ -108,6 +128,10 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		}
 	}()
 	sleeping := false
+	saverKind := ""
+	var revision, appRevision uint64
+	petSaver := newPetScreensaver(companion)
+	defer petSaver.stop()
 	updateSaverClock := func(now time.Time) {
 		clock, date := "等待对时", ""
 		if now.Year() >= 2024 {
@@ -117,7 +141,28 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		}
 		withStrings([]string{clock, date}, func(cs []*C.char) { C.dock_screensaver_time(cs[0], cs[1]) })
 	}
-	wake := func() { sleeping = false; C.dock_show_catalog() }
+	wake := func() { sleeping = false; petSaver.stop(); C.dock_screensaver_restore(); appRevision = ^uint64(0) }
+	enterSaver := func(kind string) {
+		petSaver.stop()
+		sleeping = true
+		saverKind = kind
+		withStrings([]string{kind}, func(cs []*C.char) { C.dock_screensaver_show(cs[0]) })
+		if kind == "pet" {
+			petSaver.enter(ctx)
+		}
+		updateSaverClock(time.Now())
+	}
+	if startScreensaver {
+		enterSaver(prefs.Snapshot().Screensaver)
+	}
+	resumeDisplay := func() {
+		log.Printf("按键或触摸唤醒显示")
+		C.dock_input_sleep(0)
+		if sleeping && saverKind == "pet" {
+			petSaver.enter(ctx)
+		}
+		appRevision = ^uint64(0)
+	}
 	back := func() {
 		if sleeping {
 			wake()
@@ -130,7 +175,7 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 	}
 	tick := time.NewTicker(8 * time.Millisecond)
 	defer tick.Stop()
-	var revision, appRevision uint64
+	var touchActivity uint64
 	started := time.Now()
 	var headerUpdated time.Time
 	for {
@@ -138,7 +183,35 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 		case <-ctx.Done():
 			return nil
 		case e := <-hardware:
-			if !sleeping && current != nil {
+			wasOff := standbyControl.Off
+			shortSW3, consumed, inputErr := standbyControl.Input(e, time.Now())
+			if inputErr != nil {
+				log.Printf("唤醒显示失败: %v", inputErr)
+			}
+			if wasOff && !standbyControl.Off {
+				resumeDisplay()
+			}
+			if shortSW3 {
+				// Preserve page-specific short actions such as cancelling a
+				// pending NewAPI reset; long press always belongs to the shell.
+				if !sleeping && current != nil {
+					if handler, ok := current.(interface{ HardwareEvent(controls.Event) string }); ok {
+						if action := handler.HardwareEvent(controls.Event{Key: controls.SW3, Pressed: true}); action != "" {
+							_ = h.Dispatch(core.Event{AppID: current.ID(), Action: action})
+							continue
+						}
+					}
+				}
+				if !sleeping && current == nil && h.Snapshot().Active == "" {
+					enterSaver(prefs.Snapshot().Screensaver)
+				} else {
+					back()
+				}
+			}
+			if consumed {
+				continue
+			}
+			if current != nil && (!sleeping || !e.Pressed) {
 				if handler, ok := current.(interface {
 					HardwareEvent(controls.Event) string
 				}); ok {
@@ -165,14 +238,6 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 				if !sleeping && current == nil && h.Snapshot().Active == "" {
 					C.dock_catalog_activate()
 				}
-			case controls.SW3:
-				if !sleeping && current == nil && h.Snapshot().Active == "" {
-					sleeping = true
-					withStrings([]string{prefs.Snapshot().Screensaver}, func(cs []*C.char) { C.dock_screensaver_show(cs[0]) })
-					updateSaverClock(time.Now())
-				} else {
-					back()
-				}
 			case controls.Up, controls.Down, controls.Left, controls.Right:
 				if !sleeping && current == nil && h.Snapshot().Active == "" {
 					dx, dy := 0, 0
@@ -190,6 +255,9 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 				}
 			}
 		case <-tick.C:
+			if sleeping && !standbyControl.Off && saverKind == "pet" {
+				petSaver.update(time.Now())
+			}
 			s := h.Snapshot()
 			applyTheme()
 			if time.Since(headerUpdated) >= time.Second {
@@ -211,7 +279,7 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 					C.dock_catalog_header(cs[0], C.int(level), C.int(charging), C.int(st.Radios.WiFiStrength), C.int(st.Radios.BluetoothKind))
 				})
 			}
-			if revision != s.Revision || appRevision != s.Application.Revision {
+			if !sleeping && !standbyControl.Off && (revision != s.Revision || appRevision != s.Application.Revision) {
 				updateRunning(s)
 				if current != nil && current.ID() != s.Active {
 					C.dock_show_catalog()
@@ -233,17 +301,36 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 				revision, appRevision = s.Revision, s.Application.Revision
 			}
 			C.dock_tick()
+			if activity := uint64(C.dock_input_activity()); activity != touchActivity {
+				touchActivity = activity
+				standbyControl.Activity(time.Now())
+			}
 			var native C.dock_event
 			for C.dock_poll(&native) != 0 {
 				e := core.Event{AppID: C.GoString(&native.app_id[0]), Action: C.GoString(&native.action[0]), Text: C.GoString(&native.text[0])}
-				if sleeping {
+				if standbyControl.Off {
 					if e.Action == "shell.wake" {
+						if err := standbyControl.Wake(time.Now()); err != nil {
+							log.Printf("唤醒显示失败: %v", err)
+						} else {
+							resumeDisplay()
+						}
+					}
+					continue
+				}
+				if sleeping {
+					switch e.Action {
+					case "shell.pet.touch":
+						if x, err := strconv.Atoi(e.Text); err == nil {
+							petSaver.touch(x, time.Now())
+						}
+					case "shell.wake":
 						wake()
 					}
 					continue
 				}
 				switch e.Action {
-				case "shell.wake":
+				case "shell.wake", "shell.pet.touch":
 					// Ignore a stale wake after physical navigation.
 				case core.ActionOpen:
 					if e.AppID == "" {
@@ -257,7 +344,33 @@ func Run(ctx context.Context, h *core.Host, cfg config.Config, monitor *status.M
 					_ = h.Dispatch(e)
 				}
 			}
-			if preview != "" && time.Since(started) > 300*time.Millisecond {
+			now := time.Now()
+			task := ""
+			if companion != nil {
+				v := companion.Tracker.View(now)
+				if v.Connected && v.State != "idle" {
+					task = fmt.Sprintf("%s/%s/%d/%s", v.Source, v.SessionID, v.TransitionRevision, v.State)
+				}
+			}
+			transition, powerErr := standbyControl.Update(now, time.Duration(prefs.Snapshot().StandbySeconds)*time.Second, task)
+			if powerErr != nil {
+				log.Printf("显示待机切换失败: %v", powerErr)
+			}
+			switch transition {
+			case standby.Entered:
+				log.Printf("显示进入待机")
+				petSaver.stop()
+				C.dock_input_sleep(1)
+			case standby.TaskWake:
+				log.Printf("Agent 任务唤醒显示，进入桌宠屏保")
+				C.dock_input_sleep(0)
+				enterSaver("pet")
+			}
+			previewDelay := 300 * time.Millisecond
+			if startScreensaver && prefs.Snapshot().Screensaver == "pet" {
+				previewDelay = 2 * time.Second
+			}
+			if preview != "" && time.Since(started) > previewDelay {
 				return savePreview(preview)
 			}
 		}

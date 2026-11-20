@@ -1,0 +1,50 @@
+{
+  "format": "local-pet-v1",
+  "name": "小新",
+  "families": [
+    {
+      "family": "done",
+      "file": "videos/done.mp4"
+    },
+    {
+      "family": "error",
+      "file": "videos/error.mp4"
+    },
+    {
+      "family": "idle.default",
+      "file": "videos/idle.default.mp4"
+    },
+    {
+      "family": "idle.jumping",
+      "file": "videos/idle.jumping.mp4"
+    },
+    {
+      "family": "idle.playing",
+      "file": "videos/idle.playing.mp4"
+    },
+    {
+      "family": "idle.wandering",
+      "file": "videos/idle.wandering.mp4"
+    },
+    {
+      "family": "touch.lick",
+      "file": "videos/touch.lick.mp4"
+    },
+    {
+      "family": "touch.what",
+      "file": "videos/touch.what.mp4"
+    },
+    {
+      "family": "waiting_user",
+      "file": "videos/waiting_user.mp4"
+    },
+    {
+      "family": "welcome",
+      "file": "videos/welcome.mp4"
+    },
+    {
+      "family": "working",
+      "file": "videos/working.mp4"
+    }
+  ]
+}

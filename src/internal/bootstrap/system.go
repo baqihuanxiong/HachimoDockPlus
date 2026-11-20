@@ -12,6 +12,7 @@ import (
 	"hachimodockplus/internal/apps/newapi"
 	app "hachimodockplus/internal/apps/picoclaw"
 	"hachimodockplus/internal/config"
+	"hachimodockplus/internal/pet"
 	"hachimodockplus/internal/platform/system"
 	"hachimodockplus/internal/speech"
 )
@@ -29,6 +30,14 @@ func systemServices(installed config.Config) *system.Manager {
 		}
 		if _, err = time.LoadLocation(candidate.UI.Timezone); err != nil {
 			return errors.New("显示时区无效")
+		}
+		petDirectory := system.CandidatePath(base, filepath.Dir(secretDir), candidate.UI.Pet.Directory)
+		if _, e := os.Stat(petDirectory); e == nil {
+			if _, e = pet.LoadPack(petDirectory); e != nil {
+				return e
+			}
+		} else if !errors.Is(e, os.ErrNotExist) {
+			return e
 		}
 		if _, ok := candidate.Apps[newapi.ID]; ok {
 			c, err := newapi.LoadConfig(candidate)

@@ -31,6 +31,8 @@ static lv_indev_t *touch_device;
 static struct { int x,y; bool down; } touch_slots[16];
 static lv_point_t last_touch;
 static bool touch_released=true;
+static bool input_sleep,input_swallow,input_wake_sent;
+static uint64_t input_activity;
 static dock_event events[16];
 static unsigned event_read,event_write;
 
@@ -67,15 +69,22 @@ static void touch_read(lv_indev_t *device,lv_indev_data_t *data) {
         }else if(event.type==EV_SYN&&event.code==SYN_DROPPED){
             memset(touch_slots,0,sizeof(touch_slots));touch_released=true;
         }else if(event.type==EV_SYN&&event.code==SYN_REPORT){
+            bool was_down=!touch_released;
             touch_released=true;
             for(int i=0;i<16;i++)if(touch_slots[i].down){last_touch.x=touch_slots[i].x;last_touch.y=touch_slots[i].y;touch_released=false;break;}
+            if(was_down||!touch_released)input_activity++;
+            if(input_sleep&&!touch_released&&!input_wake_sent){input_wake_sent=true;input_swallow=true;dock_emit("","shell.wake",NULL);}
             data->continue_reading=true;
             break;
         }
     }
     data->point=last_touch;
-    data->state=touch_released?LV_INDEV_STATE_RELEASED:LV_INDEV_STATE_PRESSED;
+    if(!touch_released)input_activity++;
+    if(touch_released)input_swallow=false;
+    data->state=(touch_released||input_sleep||input_swallow)?LV_INDEV_STATE_RELEASED:LV_INDEV_STATE_PRESSED;
 }
+uint64_t dock_input_activity(void){return input_activity;}
+void dock_input_sleep(int active){input_sleep=active!=0;input_wake_sent=false;input_swallow=!touch_released;}
 
 lv_color_t dock_color(unsigned rgb) { return lv_color_hex(rgb); }
 static uint32_t tick_ms(void) {
@@ -144,6 +153,7 @@ static lv_font_t *create_font(const char *path,const void *data,size_t size,int 
     return data?lv_tiny_ttf_create_data(data,size,pixels):lv_tiny_ttf_create_file(path,pixels);
 }
 int dock_init(const char *framebuffer,const char *input,const char *font) {
+    input_sleep=input_swallow=input_wake_sent=false;input_activity=0;
     lv_init();lv_tick_set_cb(tick_ms);
     if(framebuffer&&*framebuffer){
         int fd=open(framebuffer,O_RDWR);if(fd<0)return -1;close(fd);

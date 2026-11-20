@@ -1,0 +1,68 @@
+diff --git a/integrations/dsh-hachimodock/windows-acl.ps1 b/integrations/dsh-hachimodock/windows-acl.ps1
+index 324173acb3b8765fd7cb8f04656bf296098d8177..65b7c534eed9670466a6b720fca321969d160a7c 100644
+--- a/integrations/dsh-hachimodock/windows-acl.ps1
++++ b/integrations/dsh-hachimodock/windows-acl.ps1
+@@ -98,6 +98,14 @@ try {
+         # Never repair a foreign owner's entry, nor inspect any old token bytes.
+         $script:stage = 'existing-owner'
+         if ($old.owner -ne $current.Value) { throw 'owner' }
++        # A verified private entry needs no write. Some desktop process tokens
++        # cannot reapply an ACL even though the existing ACL is already valid.
++        try {
++            Assert-Private $old
++            return $old
++        } catch {
++            # Only an invalid ACL reaches the existing repair path below.
++        }
+         $acl = New-PrivateAcl $directory
+         $script:stage = 'set-acl'
+         Microsoft.PowerShell.Security\Set-Acl -LiteralPath $name -AclObject $acl
+diff --git a/pc/src-tauri/bridge/packages/agent-session-bus/src/adapters/windows-acl.ps1 b/pc/src-tauri/bridge/packages/agent-session-bus/src/adapters/windows-acl.ps1
+index 324173acb3b8765fd7cb8f04656bf296098d8177..65b7c534eed9670466a6b720fca321969d160a7c 100644
+--- a/pc/src-tauri/bridge/packages/agent-session-bus/src/adapters/windows-acl.ps1
++++ b/pc/src-tauri/bridge/packages/agent-session-bus/src/adapters/windows-acl.ps1
+@@ -98,6 +98,14 @@ try {
+         # Never repair a foreign owner's entry, nor inspect any old token bytes.
+         $script:stage = 'existing-owner'
+         if ($old.owner -ne $current.Value) { throw 'owner' }
++        # A verified private entry needs no write. Some desktop process tokens
++        # cannot reapply an ACL even though the existing ACL is already valid.
++        try {
++            Assert-Private $old
++            return $old
++        } catch {
++            # Only an invalid ACL reaches the existing repair path below.
++        }
+         $acl = New-PrivateAcl $directory
+         $script:stage = 'set-acl'
+         Microsoft.PowerShell.Security\Set-Acl -LiteralPath $name -AclObject $acl
+diff --git a/pc/src-tauri/bridge/packages/agent-session-bus/test/local-capability.test.js b/pc/src-tauri/bridge/packages/agent-session-bus/test/local-capability.test.js
+index cd03fe8b68c31bd51c36a1c0e7cfa3a2fbb419ed..a4343d049aecf3c03e2266d1f1334cd72cf4b1d6 100644
+--- a/pc/src-tauri/bridge/packages/agent-session-bus/test/local-capability.test.js
++++ b/pc/src-tauri/bridge/packages/agent-session-bus/test/local-capability.test.js
+@@ -28,6 +28,25 @@ async function withDirectory(fn) {
+ }
+ const req = (cap, role) => ({ headers: role ? { authorization: cap.headers(role).Authorization } : {} });
+ 
++test("valid Windows entries remain usable when ACL writes are denied", { skip: process.platform !== "win32" }, async () => withDirectory(async dir => {
++  const { windowsAcl } = require("../src/adapters/windows-acl");
++  const { spawnSync } = require("node:child_process");
++  const file = path.join(dir, "acl-write-denied.json");
++  createCapabilityStore().writeDescriptor({ fixture: true }, file);
++  const before = fs.readFileSync(file);
++  const spawn = (executable, args, options) => {
++    const script = Buffer.from(args.at(-1), "base64").toString("utf16le");
++    const write = "Microsoft.PowerShell.Security\\Set-Acl -LiteralPath $name -AclObject $acl";
++    assert.equal(script.split(write).length, 2);
++    const injected = script.replace(write, "throw 'fixture ACL write denied'");
++    return spawnSync(executable, [...args.slice(0, -1), Buffer.from(injected, "utf16le").toString("base64")], options);
++  };
++  windowsAcl("prepare-directory", dir, { spawn });
++  windowsAcl("protect-file", file, { spawn });
++  windowsAcl("verify-file", file);
++  assert.deepEqual(fs.readFileSync(file), before);
++}));
++
+ test("fresh epochs and distinct roles; restart invalidates old capability", async () => withDirectory(async dir => {
+   const first = createCapability(); first.publish({ busPort: 8181, hookPort: 23333 });
+   const client = readDescriptor(descriptorPath());

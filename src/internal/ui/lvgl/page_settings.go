@@ -49,6 +49,7 @@ func (p *settingsPage) Render(snapshot core.AppSnapshot) error {
 	}
 	withStrings([]string{s.Theme, s.Mode}, func(cs []*C.char) { C.dock_settings_theme(cs[0]); C.dock_settings_mode(cs[1]) })
 	withStrings([]string{s.Screensaver}, func(cs []*C.char) { C.dock_settings_screensaver(cs[0]) })
+	C.dock_settings_standby(C.int(s.StandbySeconds))
 	withStrings([]string{s.Volume.Error}, func(cs []*C.char) { C.dock_settings_volume(C.int(s.Volume.Volume), cs[0]) })
 	st := s.Connectivity
 	labels, addresses := []string{}, []string{}
@@ -88,6 +89,7 @@ func (p *settingsPage) Render(snapshot core.AppSnapshot) error {
 	withStrings([]string{snapshot.Status, wifi, bt}, func(cs []*C.char) {
 		C.dock_settings_render(cs[0], cs[1], cs[2], flag(st.BluetoothOn), flag(st.BluetoothReady), flag(s.Busy))
 	})
+	withStrings([]string{s.PetStatus}, func(cs []*C.char) { C.dock_settings_pet(cs[0], flag(s.PetPaired)) })
 	summary := "共享已关闭"
 	if !s.System.PasswordSet {
 		summary = "请先设置共享账号"

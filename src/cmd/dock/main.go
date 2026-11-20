@@ -32,7 +32,7 @@ func run() error {
 	path := flag.String("config", ".local/config.json", "configuration file")
 	ui := flag.String("ui", "lvgl", "lvgl or terminal")
 	preview := flag.String("preview", "", "render LVGL into a PNG instead of opening devices")
-	page := flag.String("page", "catalog", "initial page: catalog or a registered application ID")
+	page := flag.String("page", "catalog", "initial page: catalog, screensaver or a registered application ID")
 	prepareSystem := flag.Bool("prepare-system", false, "prepare staged SMB configuration while the UI service is stopped")
 	ask := flag.String("ask", "", "one text request through embedded PicoClaw")
 	ttsText := flag.String("tts", "", "synthesize text to -pcm-output for service verification")
@@ -150,8 +150,11 @@ func run() error {
 	defer desktop.Close()
 	if *preview == "" {
 		desktop.Audio.Initialize()
+		if err := desktop.Pet.Start(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
-	if *page != "catalog" {
+	if *page != "catalog" && *page != "screensaver" {
 		if err = desktop.Host.Open(*page); err != nil {
 			return err
 		}
@@ -161,7 +164,7 @@ func run() error {
 	case "terminal":
 		return terminal.Run(ctx, desktop.Host, os.Stdin, os.Stdout, desktop.Commands)
 	case "lvgl":
-		return lvgl.Run(ctx, desktop.Host, cfg, desktop.Status, desktop.Preferences, *preview, desktop.Pages...)
+		return lvgl.Run(ctx, desktop.Host, cfg, desktop.Status, desktop.Preferences, desktop.Pet, *preview, *page == "screensaver", desktop.Pages...)
 	default:
 		return errors.New("-ui 仅支持 lvgl 或 terminal")
 	}

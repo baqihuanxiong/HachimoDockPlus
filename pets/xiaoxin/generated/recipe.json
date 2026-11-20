@@ -1,0 +1,84 @@
+{
+  "name": "小新",
+  "recorded_date": "2026-11-20",
+  "base_url": "https://ark.cn-beijing.volces.com",
+  "image_endpoint": "/api/v3/images/generations",
+  "image_request": {
+    "model": "doubao-seedream-5-0-flash-260915",
+    "size": "2K",
+    "response_format": "url",
+    "output_format": "png",
+    "watermark": false
+  },
+  "references": {
+    "sit": {
+      "input_photos": [
+        "../xiaoxin_sit.jpg",
+        "../xiaoxin_lie.jpg",
+        "../xiaoxin_sleep.jpg"
+      ],
+      "prompt": "这三张照片是同一只真实宠物猫“小新”的不同姿势。请仅制作一张桌宠动画参考图。以第一张照片的姿势、视角为准，其他两张只用于确认这只猫的身份和毛色。保持原猫的真实摄影质感：橘白相间的长毛、圆润身体、金色眼睛、粉色鼻子、白色面部中线和白胸白爪、橘色头顶耳朵和橘色蓬松尾巴，保留独有的花纹，不能变成别的猫。目标姿势：坐着，正面略侧身，四肢与尾巴完整，保持第一张照片的坐姿和眼睛。移除木地板、家具、床、墙、音箱以及所有环境，整幅背景为完全均匀纯黑色 #000000，无地面纹理、阴影、文字、水印和其他物体。只保留这一只猫，全身居中并完整在画内，头、耳、四爪和尾巴都不能被裁切，四周预留约15%的运动空间，构图为横向4:3。不得给猫添加衣服、配饰、物品、额外肢体或额外尾巴，不改变毛色、脸型、体型，不要卡通化。只输出一张图片。",
+      "video_reference": "references/sit-768.png",
+      "reference_sha256": "123d6f542d4b67777b33f8f175d170dcca26f5553ee76e8282a9e9f829340224"
+    },
+    "lie": {
+      "input_photos": [
+        "../xiaoxin_lie.jpg",
+        "../xiaoxin_sit.jpg",
+        "../xiaoxin_sleep.jpg"
+      ],
+      "prompt": "这三张照片是同一只真实宠物猫“小新”的不同姿势。请仅制作一张桌宠动画参考图。以第一张照片的姿势、视角为准，其他两张只用于确认这只猫的身份和毛色。保持原猫的真实摄影质感：橘白相间的长毛、圆润身体、金色眼睛、粉色鼻子、白色面部中线和白胸白爪、橘色头顶耳朵和橘色蓬松尾巴，保留独有的花纹，不能变成别的猫。目标姿势：仰躺露出肚子，四只爪子自然收拢，保持第一张照片的仰躺姿势，头和尾巴完整。移除木地板、家具、床、墙、音箱以及所有环境，整幅背景为完全均匀纯黑色 #000000，无地面纹理、阴影、文字、水印和其他物体。只保留这一只猫，全身居中并完整在画内，头、耳、四爪和尾巴都不能被裁切，四周预留约15%的运动空间，构图为横向4:3。不得给猫添加衣服、配饰、物品、额外肢体或额外尾巴，不改变毛色、脸型、体型，不要卡通化。只输出一张图片。",
+      "video_reference": "references/lie-768.png",
+      "reference_sha256": "c89ba15518eab8b1f52b60d6f02534033b3da821546d9bbcbe4c3606aed210dc"
+    },
+    "sleep": {
+      "input_photos": [
+        "../xiaoxin_sleep.jpg",
+        "../xiaoxin_sit.jpg",
+        "../xiaoxin_lie.jpg"
+      ],
+      "prompt": "这三张照片是同一只真实宠物猫“小新”的不同姿势。请仅制作一张桌宠动画参考图。以第一张照片的姿势、视角为准，其他两张只用于确认这只猫的身份和毛色。保持原猫的真实摄影质感：橘白相间的长毛、圆润身体、金色眼睛、粉色鼻子、白色面部中线和白胸白爪、橘色头顶耳朵和橘色蓬松尾巴，保留独有的花纹，不能变成别的猫。目标姿势：侧躺熟睡，眼睛闭合，前后爪自然放松，保持第一张照片的侧睡姿势，头和尾巴完整。移除木地板、家具、床、墙、音箱以及所有环境，整幅背景为完全均匀纯黑色 #000000，无地面纹理、阴影、文字、水印和其他物体。只保留这一只猫，全身居中并完整在画内，头、耳、四爪和尾巴都不能被裁切，四周预留约15%的运动空间，构图为横向4:3。不得给猫添加衣服、配饰、物品、额外肢体或额外尾巴，不改变毛色、脸型、体型，不要卡通化。只输出一张图片。",
+      "video_reference": "references/sleep-768.png",
+      "reference_sha256": "b2c9bb86600eb00f61eb7ad3bacd18eda35007231a9ca11833fa03aff3ce3554"
+    },
+    "sit-jump-safe": {
+      "derived_from": "references/sit-768.png",
+      "ffmpeg_filter": "scale=538:404,pad=768:576:115:140:black",
+      "video_reference": "references/sit-jump-safe-768.png",
+      "reference_sha256": "3136cbfb92b437d160bd99cfbcb64492172c7414947de904bb5630ae4bc90bef"
+    }
+  },
+  "video_endpoint": "/api/v3/contents/generations/tasks",
+  "video_request": {
+    "model": "doubao-seedance-2-0-fast-260128",
+    "duration": 5,
+    "ratio": "4:3",
+    "resolution": "480p",
+    "generate_audio": false,
+    "watermark": false
+  },
+  "video_prompts": "generation.json: videos.<state>.prompt",
+  "states": {
+    "welcome": "欢迎",
+    "idle.default": "安静待机／睡觉",
+    "idle.playing": "玩耍",
+    "idle.wandering": "闲逛",
+    "idle.jumping": "跳跃",
+    "working": "工作中",
+    "waiting_user": "等待确认",
+    "done": "完成",
+    "error": "错误反馈",
+    "touch.lick": "亲昵触摸",
+    "touch.what": "好奇触摸"
+  },
+  "device_format": {
+    "codec": "H.264 Baseline",
+    "pixel_format": "yuv420p",
+    "resolution": [
+      640,
+      480
+    ],
+    "fps": 15,
+    "audio": false
+  }
+}

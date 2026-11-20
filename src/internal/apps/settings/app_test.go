@@ -172,7 +172,7 @@ func TestScreensaverEventPersists(t *testing.T) {
 	defer a.Close()
 	a.Start(context.Background())
 	ready(t, a)
-	for _, id := range []string{"blank", "clock", "unknown"} {
+	for _, id := range []string{"blank", "pet", "clock", "unknown"} {
 		if err := a.Handle(core.Event{Action: "screensaver.set", Text: id}); err != nil {
 			t.Fatal(err)
 		}
@@ -193,6 +193,31 @@ func TestScreensaverEventPersists(t *testing.T) {
 }
 
 type volumeMixer struct{}
+
+func TestStandbySettingEventPersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	prefs, _ := preferences.Load(path)
+	a := New(&fakeBackend{}, prefs)
+	defer a.Close()
+	a.Start(context.Background())
+	ready(t, a)
+	for _, value := range []string{"30", "invalid", "-1"} {
+		if err := a.Handle(core.Event{Action: "standby.set", Text: value}); err != nil {
+			t.Fatal(err)
+		}
+		ready(t, a)
+		if a.Snapshot().Data.(State).StandbySeconds != 30 {
+			t.Fatal(a.Snapshot())
+		}
+		if value != "30" && a.Snapshot().Status == "操作完成" {
+			t.Fatal("invalid timeout accepted")
+		}
+	}
+	loaded, err := preferences.Load(path)
+	if err != nil || loaded.Snapshot().StandbySeconds != 30 {
+		t.Fatal(loaded, err)
+	}
+}
 
 func (volumeMixer) Apply(context.Context, int) error { return nil }
 func TestAudioVolumeRemainsAvailableDuringNetworkTask(t *testing.T) {

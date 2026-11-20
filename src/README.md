@@ -4,6 +4,8 @@ MyHachimoDock 的 Linux 应用层，当前运行于 **Lyra Zero W / RK3506B（AR
 
 内置组件如下，操作、配置和限制在各自文档中维护：
 
+公共屏保支持时钟、纯黑和[桌宠](references/pet-screensaver.md)。桌宠使用 SMB 离线导入的 MP4，并可通过官方 Desktop 的 Wi-Fi 路径接收 Agent 状态；不实现 USB 或网络素材下发。
+
 | 组件 ID | 功能与参考 |
 |---|---|
 | `picoclaw` | [文字与按键语音对话](references/picoclaw.md)，支持[技能、CLI 和 MCP 扩展](references/picoclaw-extensions.md)及[豆包语音](references/doubao-voice.md) |

@@ -12,6 +12,7 @@ import (
 	"hachimodockplus/internal/apps/settings"
 	"hachimodockplus/internal/config"
 	"hachimodockplus/internal/core"
+	"hachimodockplus/internal/pet"
 	"hachimodockplus/internal/platform/audio"
 	"hachimodockplus/internal/platform/battery"
 	"hachimodockplus/internal/platform/connectivity"
@@ -23,6 +24,7 @@ import (
 )
 
 type Desktop struct {
+	Pet         *pet.Companion
 	Audio       *audio.Volume
 	Preferences *preferences.Store
 	Status      *status.Monitor
@@ -48,12 +50,14 @@ func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
 	if err != nil {
 		return nil, err
 	}
-	registry, err := applicationRegistry(cfg, prefs, volume)
+	companion := pet.New(cfg.UI.Pet.Directory, cfg.DataDir, cfg.UI.Pet.WiFiEnabled)
+	registry, err := applicationRegistry(cfg, prefs, volume, companion)
 	if err != nil {
 		volume.Close()
 		return nil, err
 	}
 	return &Desktop{
+		Pet:         companion,
 		Audio:       volume,
 		Preferences: prefs,
 		Status:      monitor,
@@ -69,13 +73,14 @@ func New(ctx context.Context, cfg config.Config) (*Desktop, error) {
 }
 
 func (d *Desktop) Close() error {
+	d.Pet.Close()
 	err := d.Host.Close()
 	d.Audio.Close()
 	return err
 }
 
 // applicationRegistry only assembles factories; validation can pass nil services.
-func applicationRegistry(cfg config.Config, prefs *preferences.Store, volume *audio.Volume) (*core.Registry, error) {
+func applicationRegistry(cfg config.Config, prefs *preferences.Store, volume *audio.Volume, companions ...settings.PetBackend) (*core.Registry, error) {
 	registry, err := core.NewRegistry(core.Registration{
 		Manifest: app.Manifest,
 		New: func() (core.Application, error) {
@@ -89,7 +94,11 @@ func applicationRegistry(cfg config.Config, prefs *preferences.Store, volume *au
 	}, core.Registration{
 		Manifest: settings.Manifest,
 		New: func() (core.Application, error) {
-			return settings.NewWithSystem(connectivity.New(), prefs, volume, systemServices(cfg)), nil
+			a := settings.NewWithSystem(connectivity.New(), prefs, volume, systemServices(cfg))
+			if len(companions) > 0 {
+				a.SetPet(companions[0])
+			}
+			return a, nil
 		},
 	}, core.Registration{Manifest: music.Manifest, New: func() (core.Application, error) {
 		client, err := netease.New(filepath.Join(cfg.AppDataDir(music.ID), "session.json"))

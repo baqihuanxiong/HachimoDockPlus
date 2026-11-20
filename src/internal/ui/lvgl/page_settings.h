@@ -6,6 +6,8 @@ void dock_settings_system(int available,int enabled,int can_restart,const char *
 int dock_settings_mount(void);
 int dock_settings_back(void);
 void dock_settings_screensaver(const char *id);
+void dock_settings_standby(int seconds);
+void dock_settings_pet(const char *status,int paired);
 void dock_settings_unmount(void);
 void dock_settings_render(const char *status,const char *wifi,const char *bt,int on,int ready,int busy);
 void dock_settings_clear(void);

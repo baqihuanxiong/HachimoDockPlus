@@ -37,16 +37,24 @@ type Backend interface {
 	ForgetWiFi(context.Context, string) error
 	Bluetooth(context.Context, string, string) error
 }
+type PetBackend interface {
+	PairStatus() (string, bool)
+	Forget() error
+}
 type State struct {
-	Volume       audio.VolumeState
-	Connectivity connectivity.State
-	Theme        string
-	Screensaver  string
-	Mode         string
-	Busy         bool
-	System       system.State
+	StandbySeconds int
+	PetStatus      string
+	PetPaired      bool
+	Volume         audio.VolumeState
+	Connectivity   connectivity.State
+	Theme          string
+	Screensaver    string
+	Mode           string
+	Busy           bool
+	System         system.State
 }
 type App struct {
+	pet             PetBackend
 	mu              sync.Mutex
 	worker          sync.Mutex
 	volume          *audio.Volume
@@ -61,6 +69,9 @@ type App struct {
 	wg              sync.WaitGroup
 	closed          bool
 }
+
+// SetPet is called by bootstrap before the application is started.
+func (a *App) SetPet(p PetBackend) { a.pet = p }
 
 func New(b Backend, prefs *preferences.Store, volumes ...*audio.Volume) *App {
 	a := &App{backend: b, preferences: prefs, status: "读取连接状态…"}
@@ -119,7 +130,7 @@ func (a *App) Start(ctx context.Context) error {
 						status = "操作超时，请检查密码或设备配对模式"
 					}
 				}
-				if e.Action == "theme.set" || e.Action == "mode.set" || e.Action == "screensaver.set" {
+				if e.Action == "theme.set" || e.Action == "mode.set" || e.Action == "screensaver.set" || e.Action == "standby.set" {
 					a.mu.Lock()
 					if epoch == a.epoch {
 						a.state.Busy = false
@@ -217,6 +228,17 @@ func (a *App) perform(ctx context.Context, e core.Event) error {
 		return a.preferences.SetTheme(e.Text)
 	case "screensaver.set":
 		return a.preferences.SetScreensaver(e.Text)
+	case "standby.set":
+		n, err := strconv.Atoi(e.Text)
+		if err != nil {
+			return errors.New("待机时长无效")
+		}
+		return a.preferences.SetStandby(n)
+	case "pet.forget":
+		if a.pet == nil {
+			return errors.New("桌宠服务不可用")
+		}
+		return a.pet.Forget()
 	case "mode.set":
 		return a.preferences.SetMode(e.Text)
 	case "wifi.scan":
@@ -260,7 +282,7 @@ func (a *App) Handle(e core.Event) error {
 			a.volume.Adjust(-5)
 		}
 		return nil
-	case "audio.output", "audio.bluetooth", "smb.account", "smb.set", "system.restart", "screensaver.set", "mode.set", "theme.set", "refresh", "wifi.scan", "wifi.join", "wifi.connect", "wifi.disconnect", "wifi.forget", "bt.on", "bt.off", "bt.scan", "bt.pair", "bt.connect", "bt.disconnect", "bt.remove":
+	case "standby.set", "pet.forget", "audio.output", "audio.bluetooth", "smb.account", "smb.set", "system.restart", "screensaver.set", "mode.set", "theme.set", "refresh", "wifi.scan", "wifi.join", "wifi.connect", "wifi.disconnect", "wifi.forget", "bt.on", "bt.off", "bt.scan", "bt.pair", "bt.connect", "bt.disconnect", "bt.remove":
 	default:
 		return core.ErrUnknownAction
 	}
@@ -311,6 +333,10 @@ func (a *App) Snapshot() core.AppSnapshot {
 	s.Theme = appearance.Theme
 	s.Mode = appearance.Mode
 	s.Screensaver = appearance.Screensaver
+	s.StandbySeconds = appearance.StandbySeconds
+	if a.pet != nil {
+		s.PetStatus, s.PetPaired = a.pet.PairStatus()
+	}
 	s.Connectivity.Networks = append([]connectivity.Network(nil), s.Connectivity.Networks...)
 	s.Connectivity.Devices = append([]connectivity.Device(nil), s.Connectivity.Devices...)
 	revision := a.revision

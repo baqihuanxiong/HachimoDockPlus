@@ -33,12 +33,17 @@ type Audio struct {
 	BluetoothDevice string `json:"bluetooth_device"`
 }
 type UI struct {
+	Pet         Pet              `json:"pet"`
 	AppOrder    []string         `json:"app_order,omitempty"`
 	Controls    controls.Options `json:"controls"`
 	Timezone    string           `json:"timezone"`
 	Framebuffer string           `json:"framebuffer"`
 	Input       string           `json:"input"`
 	Font        string           `json:"font"`
+}
+type Pet struct {
+	Directory   string `json:"directory"`
+	WiFiEnabled bool   `json:"wifi_enabled"`
 }
 type Config struct {
 	DataDir   string                     `json:"data_dir"`
@@ -144,6 +149,10 @@ func Parse(data []byte, baseDir string) (Config, error) {
 	}
 	c.DataDir = c.Resolve(c.DataDir)
 	c.UI.Font = c.Resolve(c.UI.Font)
+	if c.UI.Pet.Directory == "" {
+		c.UI.Pet.Directory = "assets/pets/default"
+	}
+	c.UI.Pet.Directory = c.Resolve(c.UI.Pet.Directory)
 	if c.Audio.CaptureDevice == "" {
 		c.Audio.CaptureDevice = "default"
 	}

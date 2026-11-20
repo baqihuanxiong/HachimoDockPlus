@@ -10,6 +10,7 @@
     "bluetooth_device": ""
   },
   "ui": {
+	"pet": {"directory": ".local/assets/pets/default", "wifi_enabled": false},
     "app_order": ["picoclaw", "settings", "music", "newapi-monitor"],
     "timezone": "Asia/Shanghai",
     "controls": {

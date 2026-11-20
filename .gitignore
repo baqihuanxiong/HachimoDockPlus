@@ -4,5 +4,6 @@
 /src/.cache/
 /src/build/
 /src/references/secret.md
+/pets/**/*.zip
 __pycache__/
 *.pyc

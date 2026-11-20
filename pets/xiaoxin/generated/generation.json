@@ -1,0 +1,255 @@
+{
+  "name": "小新",
+  "references": {
+    "sit": {
+      "intent": true,
+      "rejected": false,
+      "usage": {
+        "input_images": 3,
+        "generated_images": 1,
+        "output_tokens": 16428,
+        "total_tokens": 16428
+      },
+      "complete": true,
+      "sha256": "123d6f542d4b67777b33f8f175d170dcca26f5553ee76e8282a9e9f829340224"
+    },
+    "lie": {
+      "intent": true,
+      "rejected": false,
+      "usage": {
+        "input_images": 3,
+        "generated_images": 1,
+        "output_tokens": 16428,
+        "total_tokens": 16428
+      },
+      "complete": true,
+      "sha256": "c89ba15518eab8b1f52b60d6f02534033b3da821546d9bbcbe4c3606aed210dc"
+    },
+    "sleep": {
+      "intent": true,
+      "rejected": false,
+      "usage": {
+        "input_images": 3,
+        "generated_images": 1,
+        "output_tokens": 16428,
+        "total_tokens": 16428
+      },
+      "complete": true,
+      "sha256": "b2c9bb86600eb00f61eb7ad3bacd18eda35007231a9ca11833fa03aff3ce3554"
+    }
+  },
+  "videos": {
+    "welcome": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat looks warmly toward the viewer, makes one small friendly head tilt and briefly lifts one existing front paw in greeting, then gently returns to its relaxed sitting pose.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261119235337-oxr6f",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 956582,
+      "sha256": "e5d6bd29577f5e043ef749e3c3da07a02d963572be868ba0f27c646880948e3a"
+    },
+    "idle.default": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sleep",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat sleeps peacefully on its side. Only very subtle natural breathing moves the fluffy chest and belly, with a tiny ear twitch. Eyes stay closed. Keep the relaxed sleeping pose stable.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261119235615-k5y6k",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 699837,
+      "sha256": "2f15e943da6255b0c4ef745db3a158a812538f5ae902f2104bc29edca633525d"
+    },
+    "idle.playing": {
+      "intent": true,
+      "rejected": false,
+      "reference": "lie",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat lies on its back and playfully wiggles its existing front paws, gently turns its head, and gives one small relaxed side-to-side body wiggle, then settles back comfortably. No toy or other object.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261119235616-zlqmd",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 932781,
+      "sha256": "e0142d1603d4d8f57d309fdeba4afc51e3bcac41b95dcc24f57fa391ea305e91"
+    },
+    "idle.wandering": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat slowly rises and takes two small curious side steps near the center, glances to the side, then settles comfortably. Keep the entire cat and tail visible with generous margins. No large travel.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261119235732-2u44t",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 1041185,
+      "sha256": "dbe815697d4f8ddad44bb2624b5cd1a8ec91328fc31f76d746c13e4053f46055"
+    },
+    "idle.jumping": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit-jump-safe",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat stays small in the LOWER CENTRAL part of this black frame with very large empty headroom, matching the first frame size. It crouches gently and makes ONE TINY low hop in place: paws lift only a few centimeters, under five percent of image height. Then it softly lands and sits calmly. Never approach the camera. Keep its entire head, both ears, all paws and full tail safely visible with generous black margins in EVERY frame. Fixed distant camera, no zoom, no large leap.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261120000858-h9i18",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 723867,
+      "sha256": "abaa7a06296c7ccc150cae06232f23873e93aeab69736548634b78799c7ac5c7"
+    },
+    "working": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat looks focused and alert, leans its head slightly forward, and makes a few small alternating front-paw taps while seated, with an attentive gaze and a rhythmic gentle settle. Only natural feline anatomy; no keyboard, desk, book or invented object.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261119235910-47sj8",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 992996,
+      "sha256": "3385ceb8aa25d58fba7cff5cabe792efa659b4017bfdbb6ec0880417126c84c3"
+    },
+    "waiting_user": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat pauses expectantly, looks directly at the viewer, tilts its head, and slowly raises one existing front paw a little as if asking for a response, then relaxes without losing its attentive expression.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261119235955-vhtf6",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 998595,
+      "sha256": "49ae625313186ad922aefbccd2f8391791bf338a521dfa10c739f88b7e1ec025"
+    },
+    "done": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat shows a gentle proud and pleased expression, lifts its chest and one existing front paw in a small celebratory gesture, gives a tiny contented head nod, then settles naturally. No symbols or props.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261120000043-xvtk0",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 856676,
+      "sha256": "d829f277bb81fe611c0c3c983dc7834b518656b02f213f2796fb4dd132e17538"
+    },
+    "error": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat gives a small surprised recoil, lowers its ears very slightly, makes a brief confused head tilt, and then recovers gently to its normal calm pose. Cute and mild, never distressed or aggressive.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261120000128-w034k",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 824150,
+      "sha256": "2fcdc1259a89c822f85546de0c886a5c5c9e3845c3f04478dd51e629a11e6a52"
+    },
+    "touch.lick": {
+      "intent": true,
+      "rejected": false,
+      "reference": "lie",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat responds affectionately by lifting and leaning its head slightly toward the viewer, gently nudging its nose toward the imaginary screen glass, blinking slowly, and relaxing back. Keep its complete body, ears and tail inside the frame.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261120000251-8aljd",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 821157,
+      "sha256": "1ca60098fc5301247270618b428bec6f18cc44cfdd7a7db7bf07053aa7e4e7a3"
+    },
+    "touch.what": {
+      "intent": true,
+      "rejected": false,
+      "reference": "sit",
+      "prompt": "A photorealistic desktop companion animation of exactly the same orange-and-white longhaired cat Xiaoxin shown in the first frame. Preserve its exact facial identity, coat markings, pink nose, fluffy round body, four legs and single fluffy tail. The background must remain uniformly pure black (#000000) for the entire clip. No floor, furniture, text, symbols, effects, props, other animals or people. Fixed camera, fixed framing, fixed lighting, no cuts, no camera movement, no zoom. Keep the complete cat safely within the image at all times; never crop its ears, paws or tail. Natural fluid motion adapted to this cat, no morphing or duplicate limbs. Begin and end calmly with a gentle repeat rhythm suitable for looping. The cat reacts curiously to an imaginary touch on the screen: a slight forward lean of its head, a curious head tilt and gentle nose sniff toward the viewer, then a soft return. Keep the whole body in frame; no zoom or extreme close-up.",
+      "model": "doubao-seedance-2-0-fast-260128",
+      "duration": 5,
+      "resolution": "480p",
+      "id": "cgt-20261120000305-4dpkf",
+      "status": "succeeded",
+      "usage": {
+        "completion_tokens": 49761,
+        "total_tokens": 49761
+      },
+      "error": null,
+      "complete": true,
+      "bytes": 1001789,
+      "sha256": "62454ad49e4bc1008129dafcb0cd971fa7d0b4b61fc7b0e68ddbff0df3923f92"
+    }
+  },
+  "provider": "volcengine",
+  "image_model": "doubao-seedream-5-0-flash-260915",
+  "video_model": "doubao-seedance-2-0-fast-260128"
+}

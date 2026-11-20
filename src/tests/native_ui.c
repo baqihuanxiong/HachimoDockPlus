@@ -205,11 +205,46 @@ int main(int argc,char **argv) {
     assert(dock_catalog_move(0,1)==2);
     dock_screensaver_show("clock");dock_screensaver_time("20:30:15","2026-11-14 Sat");
     assert(lv_screen_active()==screensaver&&!strcmp(lv_label_get_text(saver_clock),"20:30:15"));
+    assert(lv_obj_get_style_opa(screensaver,0)<LV_OPA_COVER);
+    settle();assert(lv_obj_get_style_opa(screensaver,0)==LV_OPA_COVER);
     lv_obj_send_event(screensaver,LV_EVENT_CLICKED,NULL);
     assert(dock_poll(&event)==1&&!strcmp(event.action,"shell.wake"));
     assert(dock_catalog_activate()==0); /* SW2 cannot open a hidden card */
     dock_screensaver_show("blank");assert(lv_obj_has_flag(saver_clock,LV_OBJ_FLAG_HIDDEN));
     dock_show_catalog();
+    /* Wake immediately, before a single fade frame, then let animation timers
+       run past completion. No stale screen callback may load freed memory. */
+    dock_screensaver_close();
+    dock_screensaver_show("pet");dock_show_catalog();dock_screensaver_close();
+    settle();assert(lv_screen_active()==catalog);
+    for(int n=0;n<3;n++) {
+        dock_screensaver_show("pet");assert(lv_obj_has_flag(saver_clock,LV_OBJ_FLAG_HIDDEN));
+        unsigned char *frame=calloc(640*480,4);assert(frame);frame[(240*640+320)*4+2]=255;
+        assert(dock_screensaver_frame(frame,640*480*4)==0);free(frame);
+        dock_screensaver_pet("西高地 · 已连接 · 工作中","任务标题","正在执行：等待 Agent 完成当前任务，然后继续下一步。");
+        dock_screensaver_time("20:30:15","2026-11-21 Sat");settle();lv_refr_now(display);
+        const unsigned char *pet_pixels=dock_pixels();assert(pet_pixels[(240*640+320)*4+2]==255);
+        assert(!strcmp(lv_label_get_text(saver_pet_title),"任务标题"));
+        assert(!strcmp(lv_label_get_text(saver_pet_datetime),"20:30"));
+        assert(!lv_obj_has_flag(saver_pet_datetime,LV_OBJ_FLAG_HIDDEN));
+        assert(lv_obj_get_style_text_font(saver_pet_status,0)==dock_font_body);
+        assert(lv_obj_get_style_text_font(saver_pet_text,0)==dock_font_body);
+        assert(lv_obj_get_x(saver_pet_status)+lv_obj_get_width(saver_pet_status)<lv_obj_get_x(saver_pet_datetime));
+        assert(lv_obj_get_height(saver_pet_text)>=2*lv_font_get_line_height(dock_font_body));
+        /* Use actual pointer input on the image, header, clock and Agent
+           bubble: none of these overlays may eat taps or wake the catalog. */
+        const int taps[][2]={{80,240},{320,240},{560,240},{80,24},{560,24},{80,414}};
+        for(unsigned i=0;i<sizeof(taps)/sizeof(taps[0]);i++){
+            send_input(fds[1],EV_ABS,ABS_MT_SLOT,7);send_input(fds[1],EV_ABS,ABS_MT_TRACKING_ID,20);
+            pointer_point(fds[1],taps[i][0],taps[i][1]);
+            send_input(fds[1],EV_ABS,ABS_MT_TRACKING_ID,-1);send_input(fds[1],EV_SYN,SYN_REPORT,0);lv_indev_read(touch_device);
+            assert(dock_poll(&event)==1&&!strcmp(event.action,"shell.pet.touch")&&atoi(event.text)==taps[i][0]);
+            assert(dock_poll(&event)==0&&lv_screen_active()==screensaver);
+        }
+        dock_screensaver_time("等待对时","");assert(!strcmp(lv_label_get_text(saver_pet_datetime),"等待对时"));
+        dock_screensaver_show("clock");assert(lv_obj_has_flag(saver_pet_datetime,LV_OBJ_FLAG_HIDDEN));
+        dock_show_catalog();dock_screensaver_close();assert(!saver_pet_pixels);
+    }
     lv_obj_remove_state(first,LV_STATE_FOCUSED);
     for(int i=0;i<3;i++) {
         assert(dock_picoclaw_mount()==0);
@@ -289,6 +324,24 @@ int main(int argc,char **argv) {
         lv_obj_send_event(system_tab,LV_EVENT_CLICKED,NULL);
         assert(!lv_obj_has_flag(system_panel,LV_OBJ_FLAG_HIDDEN));
         assert(lv_obj_get_parent(audio_slider)==system_panel);
+        assert(lv_obj_get_parent(pet_status)==system_panel&&lv_obj_get_parent(pet_forget)==system_panel);
+        dock_settings_pet("等待 Desktop 配对",0);
+        assert(lv_obj_has_state(pet_forget,LV_STATE_DISABLED));
+        dock_settings_pet("已配对 · 等待 Desktop",1);
+        assert(!lv_obj_has_state(pet_forget,LV_STATE_DISABLED));
+        lv_obj_update_layout(system_panel);
+        lv_obj_scroll_to_view(pet_status,LV_ANIM_OFF);
+        lv_obj_update_layout(system_panel);
+        lv_area_t pair_bounds,pair_status_bounds;lv_obj_get_coords(pet_forget,&pair_bounds);lv_obj_get_coords(pet_status,&pair_status_bounds);
+        assert(pair_bounds.y1>=106&&pair_bounds.y2<pair_status_bounds.y1&&pair_status_bounds.y2<480);
+        assert(pair_bounds.x1>=438&&pair_bounds.x2<624);
+        lv_obj_send_event(pet_forget,LV_EVENT_CLICKED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"pet.forget"));
+        dock_settings_render("正在处理…","Home","蓝牙已开启",1,1,1);
+        dock_settings_pet("已配对 · 等待 Desktop",1);
+        assert(lv_obj_has_state(pet_forget,LV_STATE_DISABLED));
+        dock_settings_render("就绪","Home","蓝牙已开启",1,1,0);
+        dock_settings_pet("等待 Desktop 配对",0);
         assert(abs(lv_obj_get_y(smb_switch)-lv_obj_get_y(smb_account_button))<=12);
         dock_settings_audio("speaker","","","");
         assert(lv_obj_has_state(audio_bluetooth,LV_STATE_DISABLED));
@@ -355,6 +408,23 @@ int main(int argc,char **argv) {
         assert(last_color.y2<saver_bounds.y1&&saver_bounds.y2<438);
         lv_obj_send_event(saver_blank_button,LV_EVENT_CLICKED,NULL);
         assert(dock_poll(&event)==1&&!strcmp(event.action,"screensaver.set")&&!strcmp(event.text,"blank"));
+        dock_settings_standby(300);assert(lv_dropdown_get_selected(standby_dropdown)==4&&dock_poll(&event)==0);
+        lv_obj_scroll_to_view(standby_dropdown,LV_ANIM_OFF);lv_obj_update_layout(appearance_panel);
+        lv_area_t standby_bounds;lv_obj_get_coords(standby_dropdown,&standby_bounds);
+        assert(standby_bounds.y1>=106&&standby_bounds.y2<480);
+        lv_dropdown_set_selected(standby_dropdown,1);lv_obj_send_event(standby_dropdown,LV_EVENT_VALUE_CHANGED,NULL);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"standby.set")&&!strcmp(event.text,"30"));
+        dock_screensaver_show("pet");settle();dock_screensaver_restore();
+        assert(lv_screen_active()==settings_screen&&!screensaver);
+        /* A wake tap on a tab must not also switch tabs, including release. */
+        uint64_t activity_before=dock_input_activity();dock_input_sleep(1);
+        send_input(fds[1],EV_ABS,ABS_MT_SLOT,7);send_input(fds[1],EV_ABS,ABS_MT_TRACKING_ID,21);pointer_point(fds[1],570,34);
+        assert(dock_poll(&event)==1&&!strcmp(event.action,"shell.wake"));
+        assert(dock_input_activity()>activity_before);
+        dock_input_sleep(0);
+        send_input(fds[1],EV_ABS,ABS_MT_TRACKING_ID,-1);send_input(fds[1],EV_SYN,SYN_REPORT,0);lv_indev_read(touch_device);settle();
+        assert(dock_poll(&event)==0&&!lv_obj_has_flag(appearance_panel,LV_OBJ_FLAG_HIDDEN));
+        lv_obj_scroll_to_y(appearance_panel,0,LV_ANIM_OFF);
         open_join("","WPA-PSK");assert(dock_settings_back()==1&&!join_dialog&&dock_settings_back()==0);
         lv_obj_send_event(wifi_tab,LV_EVENT_CLICKED,NULL);
         dock_settings_network("0","Home","已保存",-45,1);

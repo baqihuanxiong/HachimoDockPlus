@@ -84,6 +84,8 @@ PicoClaw 重启前会校验 runtime JSON、工具参数、MCP 传输地址、AGE
 
 ## 资源文件与音频输出
 
+桌宠也通过 `assets/pets/<形象>/videos/*.mp4` 离线导入，共用下述资源限额与原子应用流程；准备工具、配置和 Desktop Wi-Fi 状态跟随见[桌宠屏保](pet-screensaver.md)。
+
 共享的 `assets/` 是资源暂存目录。替换 `assets/reference.wav`，或上传新文件后修改 `apps.picoclaw.tts.prompt_wav` 为 `assets/新文件.wav`；参考 WAV 为 44 字节至 4 MiB。字体路径也可指向 `assets/`。资源、JSON、密钥和 agent 扩展在校验成功后一起应用；校验失败不会替换生效资源，上传过程中修改文件会要求重试。`assets` 禁止链接和特殊文件，隐藏文件会被忽略，单文件最多 16 MiB、目录总计 32 MiB、512 项、深度 12。部署代码会保留已有资源，避免覆盖自定义声音和字体。
 
 全局音量和音频输出保存在 `config.json` 的 `audio` 下：

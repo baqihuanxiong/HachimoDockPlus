@@ -1,0 +1,189 @@
+{
+  "welcome": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "124227"
+    }
+  },
+  "idle.default": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "58027"
+    }
+  },
+  "idle.playing": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "168579"
+    }
+  },
+  "idle.wandering": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "192533"
+    }
+  },
+  "working": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "127794"
+    }
+  },
+  "waiting_user": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "116137"
+    }
+  },
+  "done": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "119301"
+    }
+  },
+  "error": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "119399"
+    }
+  },
+  "touch.lick": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "145671"
+    }
+  },
+  "touch.what": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "157778"
+    }
+  },
+  "idle.jumping": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 640,
+        "height": 480,
+        "r_frame_rate": "15/1",
+        "nb_frames": "76"
+      }
+    ],
+    "format": {
+      "duration": "5.067000",
+      "size": "103056"
+    }
+  }
+}

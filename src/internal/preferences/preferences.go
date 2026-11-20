@@ -27,9 +27,10 @@ func Find(id string) (Theme, bool) {
 }
 
 type Snapshot struct {
-	Screensaver string `json:"screensaver"`
-	Theme       string `json:"theme"`
-	Mode        string `json:"mode"`
+	StandbySeconds int    `json:"standby_seconds"`
+	Screensaver    string `json:"screensaver"`
+	Theme          string `json:"theme"`
+	Mode           string `json:"mode"`
 }
 type Store struct {
 	mu    sync.Mutex
@@ -59,8 +60,11 @@ func Load(path string) (*Store, error) {
 	if s.state.Mode != "light" && s.state.Mode != "dark" {
 		return nil, errors.New("外观偏好包含未知显示模式")
 	}
-	if s.state.Screensaver != "clock" && s.state.Screensaver != "blank" {
+	if !validScreensaver(s.state.Screensaver) {
 		return nil, errors.New("偏好包含未知屏保")
+	}
+	if !validStandby(s.state.StandbySeconds) {
+		return nil, errors.New("偏好包含无效待机时长")
 	}
 	return s, nil
 }
@@ -78,11 +82,25 @@ func (s *Store) SetMode(mode string) error {
 	return s.update(func(next *Snapshot) { next.Mode = mode })
 }
 func (s *Store) SetScreensaver(id string) error {
-	if id != "clock" && id != "blank" {
+	if !validScreensaver(id) {
 		return errors.New("不支持此屏保")
 	}
 	return s.update(func(next *Snapshot) { next.Screensaver = id })
 }
+func validStandby(seconds int) bool {
+	switch seconds {
+	case 0, 30, 60, 180, 300, 600:
+		return true
+	}
+	return false
+}
+func (s *Store) SetStandby(seconds int) error {
+	if !validStandby(seconds) {
+		return errors.New("不支持此待机时长")
+	}
+	return s.update(func(next *Snapshot) { next.StandbySeconds = seconds })
+}
+func validScreensaver(id string) bool { return id == "clock" || id == "blank" || id == "pet" }
 func (s *Store) update(change func(*Snapshot)) error {
 	s.write.Lock()
 	defer s.write.Unlock()

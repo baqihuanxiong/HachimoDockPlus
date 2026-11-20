@@ -136,7 +136,38 @@ func TestScreensaverMigrationAndPersistence(t *testing.T) {
 	if err != nil || loaded.Snapshot().Screensaver != "blank" || loaded.Snapshot().Mode != "light" {
 		t.Fatal(loaded, err)
 	}
-	if s.SetScreensaver("pet") == nil || s.Snapshot().Screensaver != "blank" {
+	if err = s.SetScreensaver("pet"); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = Load(path)
+	if err != nil || loaded.Snapshot().Screensaver != "pet" {
+		t.Fatal(loaded, err)
+	}
+	if s.SetScreensaver("unknown") == nil || s.Snapshot().Screensaver != "pet" {
 		t.Fatal("invalid saver committed")
+	}
+}
+
+func TestStandbyMigrationPersistenceAndValidation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	os.WriteFile(path, []byte(`{"theme":"amber","mode":"light","screensaver":"pet"}`), 0600)
+	s, err := Load(path)
+	if err != nil || s.Snapshot().StandbySeconds != 0 {
+		t.Fatal(s, err)
+	}
+	for _, seconds := range []int{30, 60, 180, 300, 600, 0} {
+		if err = s.SetStandby(seconds); err != nil {
+			t.Fatal(err)
+		}
+		loaded, err := Load(path)
+		if err != nil || loaded.Snapshot() != s.Snapshot() || loaded.Snapshot().StandbySeconds != seconds {
+			t.Fatal(loaded, err)
+		}
+		if s.Snapshot().Theme != "amber" || s.Snapshot().Screensaver != "pet" {
+			t.Fatal("standby overwrote appearance")
+		}
+	}
+	if s.SetStandby(-1) == nil || s.SetStandby(1) == nil || s.Snapshot().StandbySeconds != 0 {
+		t.Fatal("invalid timeout accepted")
 	}
 }

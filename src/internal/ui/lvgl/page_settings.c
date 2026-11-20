@@ -16,9 +16,16 @@ static lv_obj_t *smb_switch,*smb_account_button,*smb_summary,*smb_address,*syste
 static lv_obj_t *system_dialog,*smb_username_input,*smb_password_input,*system_keyboard;
 static char settings_smb_username[40]="dockconfig";
 static int settings_smb_available,settings_can_restart;
-static lv_obj_t *saver_clock_button,*saver_blank_button;
-static lv_obj_t *join_dialog,*join_ssid,*join_password,*join_keyboard;
+static lv_obj_t *saver_clock_button,*saver_blank_button,*saver_pet_button,*pet_status,*pet_forget;
 static int settings_busy,settings_bt_on;
+static lv_obj_t *standby_dropdown;
+static const int standby_seconds[]={0,30,60,180,300,600};
+static void standby_changed(lv_event_t *e){
+ (void)e;if(settings_busy)return;
+ unsigned selected=lv_dropdown_get_selected(standby_dropdown);if(selected>=6)return;
+ char seconds[16];snprintf(seconds,sizeof(seconds),"%d",standby_seconds[selected]);dock_emit("settings","standby.set",seconds);
+}
+static lv_obj_t *join_dialog,*join_ssid,*join_password,*join_keyboard;
 static char join_security[32];
 typedef struct{lv_obj_t *button,*check;char id[24],title[48];}theme_choice;
 static theme_choice theme_choices[16];
@@ -145,15 +152,20 @@ int dock_settings_mount(void){
  bt_power=dock_button(bt_panel,"开启蓝牙",0,38,200,44,0x334155,NULL,NULL);bt_power_text=lv_obj_get_child(bt_power,0);lv_obj_add_event_cb(bt_power,settings_power,LV_EVENT_CLICKED,NULL);
  bt_scan=dock_button(bt_panel,"扫描设备",216,38,200,44,0x0f766e,NULL,NULL);lv_obj_add_event_cb(bt_scan,settings_command,LV_EVENT_CLICKED,"bt.scan");bt_list=settings_list(bt_panel);
  dock_label(bt_panel,"附近设备优先；已保存不代表当前在线",0,86,608,dock_font_small,0x94a3b8);lv_obj_set_y(bt_list,116);lv_obj_set_height(bt_list,246);
- appearance_panel=lv_obj_create(settings_screen);dock_panel(appearance_panel,0x0c1220);lv_obj_set_pos(appearance_panel,16,106);lv_obj_set_size(appearance_panel,608,366);lv_obj_remove_flag(appearance_panel,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(appearance_panel,LV_OBJ_FLAG_HIDDEN);
+ appearance_panel=lv_obj_create(settings_screen);dock_panel(appearance_panel,0x0c1220);lv_obj_set_pos(appearance_panel,16,106);lv_obj_set_size(appearance_panel,608,366);lv_obj_add_flag(appearance_panel,LV_OBJ_FLAG_HIDDEN);
  dock_label(appearance_panel,"显示模式",0,10,152,dock_font_body,0xe2e8f0);
  mode_light_button=dock_button(appearance_panel,"白天模式",168,0,204,44,0x334155,NULL,NULL);lv_obj_add_event_cb(mode_light_button,mode_clicked,LV_EVENT_CLICKED,"light");
  mode_dark_button=dock_button(appearance_panel,"黑夜模式",388,0,220,44,0x0f766e,NULL,NULL);lv_obj_add_event_cb(mode_dark_button,mode_clicked,LV_EVENT_CLICKED,"dark");
  theme_selected=dock_label(appearance_panel,"主题色",0,56,608,dock_font_body,0xe2e8f0);
  dock_label(appearance_panel,"屏保模式",0,286,152,dock_font_body,0xe2e8f0);
- saver_clock_button=dock_button(appearance_panel,"时钟屏保",168,276,204,44,0x0f766e,NULL,NULL);lv_obj_add_event_cb(saver_clock_button,saver_clicked,LV_EVENT_CLICKED,"clock");
- saver_blank_button=dock_button(appearance_panel,"纯黑屏保",388,276,220,44,0x334155,NULL,NULL);lv_obj_add_event_cb(saver_blank_button,saver_clicked,LV_EVENT_CLICKED,"blank");
+ saver_clock_button=dock_button(appearance_panel,"时钟",136,276,148,44,0x0f766e,NULL,NULL);lv_obj_add_event_cb(saver_clock_button,saver_clicked,LV_EVENT_CLICKED,"clock");
+ saver_blank_button=dock_button(appearance_panel,"纯黑",296,276,148,44,0x334155,NULL,NULL);lv_obj_add_event_cb(saver_blank_button,saver_clicked,LV_EVENT_CLICKED,"blank");
+ saver_pet_button=dock_button(appearance_panel,"桌宠",456,276,152,44,0x334155,NULL,NULL);lv_obj_add_event_cb(saver_pet_button,saver_clicked,LV_EVENT_CLICKED,"pet");
  dock_label(appearance_panel,"组件中心按 SW3 切换屏保，选择自动保存",0,338,608,dock_font_small,0x94a3b8);
+ dock_label(appearance_panel,"自动待机",0,398,272,dock_font_body,0xe2e8f0);
+ standby_dropdown=lv_dropdown_create(appearance_panel);lv_obj_set_pos(standby_dropdown,320,386);lv_obj_set_size(standby_dropdown,288,44);lv_obj_set_style_text_font(standby_dropdown,dock_font_body,0);lv_obj_set_style_text_font(lv_dropdown_get_list(standby_dropdown),dock_font_body,0);lv_dropdown_set_options(standby_dropdown,"关闭\n30 秒\n1 分钟\n3 分钟\n5 分钟\n10 分钟");lv_obj_add_event_cb(standby_dropdown,standby_changed,LV_EVENT_VALUE_CHANGED,NULL);
+ dock_label(appearance_panel,"长按 SW3 待机 · 任意按键或触摸唤醒",0,446,608,dock_font_small,0x94a3b8);
+ dock_label(appearance_panel,"Agent 任务到达时自动亮屏进入桌宠",0,478,608,dock_font_small,0x94a3b8);
  system_panel=lv_obj_create(settings_screen);dock_panel(system_panel,0x0c1220);lv_obj_set_pos(system_panel,16,106);lv_obj_set_size(system_panel,608,366);lv_obj_add_flag(system_panel,LV_OBJ_FLAG_HIDDEN);
  dock_label(system_panel,"全局播放音量",12,0,380,dock_font_body,0xf1f5f9);
  audio_value=dock_label(system_panel,"60%",502,0,94,dock_font_body,0x5eead4);
@@ -173,10 +185,14 @@ int dock_settings_mount(void){
  smb_address=dock_label(system_panel,"",12,378,584,dock_font_small,0xe2e8f0);lv_obj_set_height(smb_address,26);lv_label_set_long_mode(smb_address,LV_LABEL_LONG_DOT);
  system_restart_button=dock_button(system_panel,"应用配置并重启",12,418,584,48,0x0f766e,NULL,NULL);lv_obj_add_event_cb(system_restart_button,settings_restart_open,LV_EVENT_CLICKED,NULL);
  dock_label(system_panel,"电脑保存后点击重启；校验失败时保留原配置",12,480,584,dock_font_small,0x94a3b8);
+ dock_label(system_panel,"Desktop Wi-Fi 配对",12,532,380,dock_font_body,0xe2e8f0);
+ pet_status=dock_label(system_panel,"",12,572,584,dock_font_small,0x94a3b8);lv_label_set_long_mode(pet_status,LV_LABEL_LONG_DOT);lv_obj_set_height(pet_status,28);
+ pet_forget=dock_button(system_panel,"解除配对",422,524,174,44,0x334155,NULL,NULL);lv_obj_add_event_cb(pet_forget,settings_command,LV_EVENT_CLICKED,"pet.forget");
  lv_screen_load(settings_screen);return 0;
 }
 void dock_settings_render(const char *status,const char *wifi,const char *bt,int on,int ready,int busy){
  settings_busy=busy;settings_bt_on=on;lv_label_set_text(settings_status,status);lv_label_set_text(wifi_status,wifi);lv_label_set_text(bt_status,bt);lv_label_set_text(bt_power_text,on?"关闭蓝牙":"开启蓝牙");
+ set_enabled(standby_dropdown,!busy);
  set_enabled(audio_speaker,!busy);set_enabled(audio_spdif,!busy);set_enabled(audio_bluetooth,!busy&&audio_device_count);set_enabled(audio_devices,!busy&&audio_device_count);set_enabled(wifi_scan,!busy);set_enabled(wifi_manual,!busy);set_enabled(wifi_disconnect,!busy);set_enabled(bt_power,!busy&&ready);set_enabled(bt_scan,!busy&&on);set_enabled(wifi_list,!busy);set_enabled(bt_list,!busy);for(unsigned i=0;i<theme_choice_count;i++)set_enabled(theme_choices[i].button,!busy);set_enabled(mode_light_button,!busy);set_enabled(mode_dark_button,!busy);set_enabled(saver_clock_button,!busy);set_enabled(saver_blank_button,!busy);set_enabled(smb_switch,!busy&&settings_smb_available);set_enabled(smb_account_button,!busy&&settings_smb_available);set_enabled(system_restart_button,!busy&&settings_can_restart);
 }
 void dock_settings_system(int available,int enabled,int can_restart,const char *username,const char *summary,const char *address){
@@ -230,4 +246,6 @@ void dock_settings_mode(const char *mode){
 }
 
 int dock_settings_back(void){if(system_dialog){settings_system_close();return 1;}if(join_dialog){close_join();return 1;}return 0;}
-void dock_settings_screensaver(const char *id){int clock=!strcmp(id,"clock");dock_theme_button(saver_clock_button,clock);dock_theme_button(saver_blank_button,!clock);}
+void dock_settings_screensaver(const char *id){dock_theme_button(saver_clock_button,!strcmp(id,"clock"));dock_theme_button(saver_blank_button,!strcmp(id,"blank"));dock_theme_button(saver_pet_button,!strcmp(id,"pet"));}
+void dock_settings_standby(int seconds){for(unsigned i=0;i<6;i++)if(standby_seconds[i]==seconds&&!lv_dropdown_is_open(standby_dropdown)){lv_dropdown_set_selected(standby_dropdown,i);break;}}
+void dock_settings_pet(const char *status,int paired){lv_label_set_text(pet_status,status);set_enabled(pet_forget,paired&&!settings_busy);set_enabled(saver_pet_button,!settings_busy);}

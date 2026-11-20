@@ -9,6 +9,8 @@
 - 上游：[YizhengWw/HachimoDock](https://github.com/YizhengWw/HachimoDock)，Copyright (C) 2026 Yizheng Wang。本仓库通过 [`HachimoDock/`](HachimoDock/) 子模块保留参考源码，具体版本由 Git 子模块提交记录固定。
 - HachimoDock 自有内容适用其 [项目许可证](HachimoDock/LICENSE)，是**非商业源码可见许可**，并非标准 MIT / GPL 开源许可证。上游对非商业改造、再分发、品牌使用及需另行授权的用途有明确条件；保留致谢不替代授权。
 - 上游第三方内容继续适用 [HachimoDock 第三方声明](HachimoDock/THIRD_PARTY_NOTICES.md) 和相应文件的原许可。
+- HachimoDock 的 Windows ACL 本地修复以[独立补丁](src/patches/README.md#hachimodock-windows-acl-幂等修复)保存，修改的上游脚本与回归测试继续适用 HachimoDock 许可证。
+- [`src/internal/platform/desktoplan/`](src/internal/platform/desktoplan/) 和独立 LAN 验证客户端的协议 / SRP 部分参考并适配 HachimoDock `165401b` 的 `pet_p4_lan.c`、`lan_agent.rs`，派生部分保留上游许可。`tools/import-pet.py --builtin` 从子模块准备西高地测试素材，转换包保留上游 LICENSE、来源与提交；这些素材不转授为 MIT。
 - [`src/extensions/mijia/`](src/extensions/mijia/README.md) 的云协议由 HachimoDock 的 `miot_protocol.rs`、`smart_home.rs` 相关逻辑适配，上游涉及 Xiaomi MiLoCo `miloco-miot` 2026.8.6。应同时保留 HachimoDock 的适用许可与 [扩展来源声明](src/extensions/mijia/THIRD_PARTY_NOTICES.md)。
 - MiLoCo 相关授权作品为 Copyright (C) 2025 Xiaomi Corporation，适用 [Xiaomi Miloco License](src/extensions/mijia/Xiaomi-Miloco-LICENSE.md)。其非商业及用途限制不会因移植为 Go、独立打包或采用本仓库原创部分而消失。
 

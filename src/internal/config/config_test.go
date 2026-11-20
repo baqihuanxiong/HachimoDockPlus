@@ -33,6 +33,18 @@ func TestCatalogOrderJSON(t *testing.T) {
 		t.Fatal("non-array app order accepted")
 	}
 }
+
+func TestPetConfigurationKeepsInstalledAssetBase(t *testing.T) {
+	base := t.TempDir()
+	c, err := Parse([]byte(`{"data_dir":"data","ui":{"pet":{"directory":"assets/pets/my-pet","wifi_enabled":true}}}`), base)
+	if err != nil || !c.UI.Pet.WiFiEnabled || c.UI.Pet.Directory != filepath.Join(base, "assets/pets/my-pet") {
+		t.Fatal(c.UI.Pet, err)
+	}
+	c, err = Parse([]byte(`{"data_dir":"data"}`), base)
+	if err != nil || c.UI.Pet.WiFiEnabled || c.UI.Pet.Directory != filepath.Join(base, "assets/pets/default") {
+		t.Fatal(c.UI.Pet, err)
+	}
+}
 func TestCatalogConfigDoesNotRequireApplicationSecrets(t *testing.T) {
 	root := t.TempDir()
 	p := filepath.Join(root, "config.json")
