@@ -23,6 +23,8 @@ func (c *Client) provider(ctx context.Context, p ProviderConfig) Balance {
 	}
 	if p.Kind == "mimo-token-plan" {
 		b, err = c.mimo(ctx, p, key)
+	} else if p.Auth == "access-key" {
+		b, err = c.aliyunWithAccessKey(ctx, p, key)
 	} else {
 		b, err = c.aliyun(ctx, p, key)
 	}
@@ -52,12 +54,26 @@ func (c *Client) aliyun(ctx context.Context, p ProviderConfig, key string) (Bala
 	var response map[string]json.RawMessage
 	err := c.request(ctx, "POST", strings.TrimRight(p.URL, "/")+"/cli/api.json?"+query.Encode(), "application/x-www-form-urlencoded", []byte(body.Encode()), map[string]string{"Authorization": "Bearer " + key}, &response)
 	if err != nil {
+		if errors.Is(err, errUnauthorized) {
+			return Balance{}, errAliyunSessionExpired
+		}
 		return Balance{}, err
 	}
 	// Bailian wraps quota in data.DataV2.data.data; reject any failed envelope.
 	for depth := 0; depth < 7; depth++ {
 		if v, ok := response["success"]; ok && string(v) == "false" {
-			return Balance{}, errors.New("阿里控制台会话失效或权限不足，请更新凭证")
+			var code string
+			_ = json.Unmarshal(response["errorCode"], &code)
+			switch code {
+			case "BailianGateway.Login.NotLogined":
+				return Balance{}, errAliyunSessionExpired
+			case "BailianGateway.Team.NotAuthorised":
+				return Balance{}, errors.New("请在百炼账号管理中将 RAM 用户加入业务空间并授权")
+			case "BailianGateway.AuthorityPolicies.NoPermission":
+				return Balance{}, errors.New("百炼权限不足，请检查 RAM 用户的智能体操作权限")
+			default:
+				return Balance{}, errors.New("阿里额度查询失败，请检查 RAM 与百炼权限")
+			}
 		}
 		if raw, ok := response["per1MonthPercentage"]; ok {
 			var used *float64

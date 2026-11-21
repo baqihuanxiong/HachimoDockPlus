@@ -54,7 +54,12 @@ type Client struct {
 	cfg  Config
 	http *http.Client
 	key  string
+	// A cancellable gate serializes token issuance and expired-session retries.
+	aliyunGate   chan struct{}
+	aliyunTokens map[string]aliyunToken
 }
+
+var errUnauthorized = errors.New("鉴权失败，请更新凭证并重新进入")
 
 func NewClient(c Config) (*Client, error) {
 	if err := c.Validate(); err != nil {
@@ -64,7 +69,7 @@ func NewClient(c Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{cfg: c, key: key, http: &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone(), Timeout: time.Duration(c.TimeoutSeconds) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	return &Client{cfg: c, key: key, aliyunGate: make(chan struct{}, 1), aliyunTokens: make(map[string]aliyunToken), http: &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone(), Timeout: time.Duration(c.TimeoutSeconds) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
 func (c *Client) Close() error { c.http.CloseIdleConnections(); return nil }
@@ -90,7 +95,10 @@ func (c *Client) request(ctx context.Context, method, endpoint, contentType stri
 		return errors.New("网络请求失败或超时")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+	if resp.StatusCode == 401 {
+		return errUnauthorized
+	}
+	if resp.StatusCode == 403 {
 		return errors.New("鉴权失败，请更新凭证并重新进入")
 	}
 	if resp.StatusCode != 200 {

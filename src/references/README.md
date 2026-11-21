@@ -47,6 +47,7 @@
 - [设置页配对区与亮度检查（2026-11-21）](reports/settings-2026-11-21.md)
 - [显示待机与 Agent 唤醒（2026-11-21）](reports/standby-2026-11-21.md)
 - [NewAPI 看板与余额重置验证（2026-11-15）](reports/newapi-dashboard-2026-11-15.md)
+- [NewAPI 阿里 RAM 自动令牌与板端验证（2026-11-21）](reports/newapi-auth-2026-11-21.md)
 - [米家属性读取修复（2026-11-15）](reports/mijia-properties-2026-11-15.md)
 
 `secret.md` 是本地配置导入来源，不属于公开文档。凭据、对话、账号信息与原始截图不进入文档或仓库。

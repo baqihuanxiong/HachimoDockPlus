@@ -13,6 +13,7 @@ type ProviderConfig struct {
 	Name string `json:"name"`
 	config.Service
 	Region string `json:"region,omitempty"`
+	Auth   string `json:"auth,omitempty"`
 }
 
 type Config struct {
@@ -75,6 +76,21 @@ func (c Config) Validate() error {
 		if p.Kind == "aliyun-token-plan" && p.Region != "" && p.Region != "cn-beijing" && p.Region != "ap-southeast-1" {
 			return errors.New("NewAPI: 阿里地域必须为 cn-beijing 或 ap-southeast-1")
 		}
+		if p.Auth != "" && (p.Kind != "aliyun-token-plan" || p.Auth != "access-key") {
+			return errors.New("NewAPI: auth 仅支持阿里 access-key 模式，留空使用原有令牌")
+		}
+		if p.Auth == "access-key" && !validAliyunGateway(p) {
+			return errors.New("NewAPI: 阿里 access-key 模式须使用对应地域的官方 HTTPS 控制台地址")
+		}
 	}
 	return nil
+}
+
+// ValidateCredentials also checks RAM credential structure without network access.
+func (p ProviderConfig) ValidateCredentials() error {
+	key, err := p.Service.Key()
+	if err == nil && p.Auth == "access-key" {
+		_, err = parseAliyunAccessKey(key)
+	}
+	return err
 }

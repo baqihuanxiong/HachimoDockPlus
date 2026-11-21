@@ -22,8 +22,9 @@
       {
         "kind": "aliyun-token-plan",
         "name": "阿里千问 Token Plan",
+        "auth": "access-key",
         "url": "https://bailian-cs.console.aliyun.com",
-        "key_file": "secrets/aliyun-console.key",
+        "key_file": "secrets/aliyun-ram.key",
         "region": "cn-beijing"
       },
       {
@@ -60,8 +61,36 @@
 
 当前接入百炼个人版 Token Plan 月度额度，指标卡显示剩余百分比；该接口未返回绝对 Credits 时不会编造金额。套餐额度与阿里云现金余额相互独立。
 
+### RAM 自动获取与续期（板端可独立运行）
+
+阿里账户配置增加 `"auth": "access-key"`，`key_file` 改为 `secrets/aliyun-ram.key`，URL 与地域保持对应的官方 HTTPS 地址。例如：
+
+```json
+{"kind":"aliyun-token-plan","name":"阿里千问 Token Plan","auth":"access-key","url":"https://bailian-cs.console.aliyun.com","key_file":"secrets/aliyun-ram.key","region":"cn-beijing"}
+```
+
+`aliyun-ram.key` 是权限 `600` 的**单行 JSON**（示例值仅作占位）：
+
+```json
+{"access_key_id":"LTAI_REPLACE_ME","access_key_secret":"REPLACE_ME"}
+```
+
+可选 `security_token` 支持临时 STS 凭证，但上层仍须在 STS 到期时更换凭证文件。配置共享应用时会校验 RAM JSON 和文件权限，不发起网络请求。
+
+在应用前台首次查询时，板端按 ACS3-HMAC-SHA256 签名调用 `POST https://modelstudio.<region>.aliyuncs.com/modelstudio/cli/generateAccessToken`（`GenerateCLIAccessToken`，版本 `2026-02-10`），再查询额度。令牌只保存在本进程内存；之后的刷新复用缓存。HTTP 401 或 `BailianGateway.Login.NotLogined` 触发重新获取并重试额度请求；每次刷新最多换取一次令牌。权限、网络和格式错误不会反复续期。并发刷新共用令牌，等待和网络请求均服从页面取消；离开页面后不运行后台续期任务，再次进入按需恢复。应用重启后重新取令牌，不依赖电脑、浏览器或 CLI 常驻。
+
+RAM 密钥文件每次刷新读取，替换后下一次刷新废弃旧令牌。密钥和令牌不进入状态、日志或截图；错误只显示固定的权限／鉴权／网络提示。RAM 凭证本身仍需保持有效，撤销或停用后无法续期。
+
+RAM 用户授权包含 `AliyunTokenPlanReadOnlyAccess`、`AliyunBSSReadOnlyAccess`，以及允许 `modelstudio:GenerateCLIAccessToken`、`Resource: "*"` 的自定义策略。百炼账号管理还须将用户加入对应业务空间；北京个人版当前查询接口需要“应用 → 智能体-操作”权限。权限管理是独立于 RAM 系统策略的另一层。
+
+依据：[官方令牌获取实现](https://github.com/modelstudioai/cli/blob/main/packages/core/src/auth/refresh-token.ts)、[ACS3 签名规范](https://help.aliyun.com/zh/sdk/product-overview/v3-request-structure-and-signature)、[Token Plan RAM 权限说明](https://help.aliyun.com/zh/model-studio/token-plan-permissions-and-usage)。
+
+### 手工控制台令牌（兼容原有配置）
+
+省略 `auth` 时继续将 `key_file` 作为控制台令牌文件读取，不自动换取令牌：
+
 1. 按 [官方安装说明](https://help.aliyun.com/en/model-studio/cli/installation) 安装百炼 CLI。
-2. 在电脑执行 `bl auth login --console --config default --console-region cn-beijing`，在浏览器完成阿里云控制台登录与授权。
+2. 在电脑执行 `bl auth login --console --config default`，在浏览器完成阿里云控制台登录与授权。浏览器登录不接受 `--console-region`；该参数仅用于 `--console --token-stdin` 导入已有令牌。
 3. 执行 `bl usage token-plan --config default --output json` 确认该账号存在月度额度。
 4. 将 CLI 配置的 `access_token` 单独写入 `aliyun-console.key`，权限设为 `600`，再通过配置共享安装到设备。以下示例从项目 `src/` 运行，不在终端输出令牌：
 

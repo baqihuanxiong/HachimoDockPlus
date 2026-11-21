@@ -44,16 +44,13 @@ func systemServices(installed config.Config) *system.Manager {
 			if err != nil {
 				return err
 			}
-			services := []config.Service{c.Service}
-			for _, p := range c.Providers {
-				services = append(services, p.Service)
-			}
-			for _, service := range services {
-				relative, err := filepath.Rel(filepath.Join(base, "secrets"), service.KeyFile)
+			providers := append([]newapi.ProviderConfig{{Service: c.Service}}, c.Providers...)
+			for _, provider := range providers {
+				relative, err := filepath.Rel(filepath.Join(base, "secrets"), provider.KeyFile)
 				if err == nil && relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative) {
-					service.KeyFile = filepath.Join(secretDir, relative)
+					provider.KeyFile = filepath.Join(secretDir, relative)
 				}
-				if _, err := service.Key(); err != nil {
+				if err := provider.ValidateCredentials(); err != nil {
 					return fmt.Errorf("NewAPI：%w", err)
 				}
 			}
